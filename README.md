@@ -48,7 +48,8 @@ Params you can use:
 * **start_page** _string_ - URL which will be used as entry point to parsed site. Default: `/`
 * **protocol** _string_ - defines protocol to be used by crawler. Default: `http://`
 * **stay_in_domain** _bool_ - defines ability of crawler to leave passed domain to crawl out-of-domain pages. Default: `True`
-* **valid_link** _string_ - regular expression string, which will be used to filter site URLs. Default: `(.*)`
+* **valid_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs to be passed to `crawl()` method. Default: `[(.*)]`
+* **exclude_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs which must not be checked at all. Default: `[]`
 * **autostart** _bool_ - defines if crawler will be starter right after class initialization. Default: `False`
 * **cookies** _dict_ - a dictionary of string key-values which represents cookie name and cookie value to be passed with site URL request. Default: `{}`
 * **headers** _dict_ - a dictionary of string key-values which represents header name and value value to be passed with site URL request. Default: `{}`
@@ -66,6 +67,7 @@ While inhrerit Pholcidae class you can override built-in `crawl()` method to ret
 * **headers** _AttrDict_ - dictionary of response headers.
 * **cookies** _AttrDict_ - dictionary of response cookies.
 * **status** _int_ - HTTP status of response (e.g. 200).
+* _optional_: **match** _str_ - matched part from valid_links regex.
 
 **Unsuccessfull parsing**
 
@@ -85,10 +87,14 @@ class MySpider(Pholcidae):
 		'start_page': '/mypage/',
 		'protocol': 'http://',
 		'stay_in_domain': False,
-		'valid_link': 'product-(.*).html',
+		'valid_links': ['product-(.*).html'],
+		'exclude_links': ['\/forum\/(.*)'],
 		'autostart': True,
 		'cookies': {
 			'session': 'KSnD5KtjKDTde2Q9WxVy4iaav7a2EK73V'
+		},
+		'headers': {
+			'Referer': 'http://mysite.com/'
 		}
 	}
 
@@ -99,7 +105,7 @@ class MySpider(Pholcidae):
 spider = MySpider()
 ```
 
-In this example our crawler will parse `http://www.test.com` starting with `http://www.test.com/mypage/`. It will parse only URLs with will be like `product-xxxxx.html` (example: `product-2357451.html`). Also crawler will parse any link with does not belong to `http://www.test.com`, but they must apply `valid_link` rule. Cookie header `Cookie: session=KSnD5KtjKDTde2Q9WxVy4iaav7a2EK73V` will be attached to every page request. Crawler will be started right after `spider = MySpider()`, without calling `spider.start()`.
+In this example our crawler will parse `http://www.test.com` starting with `http://www.test.com/mypage/`. It will pass to `crawl()` method only URLs which will be like `product-xxxxx.html` (example: `product-2357451.html`) and avoid to collect links from any URL with ".../forum/..." in it. Also crawler will parse any link with does not belong to `http://www.test.com`, but they must apply `valid_link` rule. Cookie `Cookie: session=KSnD5KtjKDTde2Q9WxVy4iaav7a2EK73V` and custom `Referer: http://mysite.com/` headers will be attached to every page request. Crawler will be started right after `spider = MySpider()`, without calling `spider.start()`.
 
 Note
 ------------

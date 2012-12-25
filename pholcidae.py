@@ -19,9 +19,10 @@ class Pholcidae:
 
         # default local urllib2 opener
         self._opener = None
-        # creating new lists of unparsed, alerady parsed and invalid URLs
+        # creating new sets of unparsed, already parsed and failed URLs
         self._unparsed_urls = set()
         self._parsed_urls = set()
+        self._failed_urls = set()
         # extending settings with given values
         self._extend_settings()
         # compiling regular expressions
@@ -73,7 +74,9 @@ class Pholcidae:
         # do we need to follow HTTP redirects?
         self._settings.follow_redirects = True
         # what page links do we need to parse?
-        self._settings.valid_link = '(.*)'
+        self._settings.valid_links = ['(.*)']
+        # what URLs must be excluded
+        self._settings.exclude_links = []
         # what is an entry point for crawler??
         self._settings.start_page = '/'
         # which domain should we parse?
@@ -120,9 +123,17 @@ class Pholcidae:
         # collects all links across given page
         self._regex.href_links = re.compile(r'<a\s(.*?)href="(.*?)"(.*?)>',
                                             flags=flags)
-        self._regex.valid_link = re.compile(self._settings.valid_link,
-                                            flags=flags)
         self._regex.split_header = re.compile(r'^(.*?):(.*)$', flags=flags)
+
+        # complinig valid links regexs
+        self._regex.valid_link = []
+        for regex in self._settings.valid_links:
+            self._regex.valid_link.append(re.compile(regex, flags=flags))
+
+        # compiling invalid links regexs
+        self._regex.invalid_link = []
+        for regex in self._settings.exclude_links:
+            self._regex.invalid_link.append(re.compile(regex, flags=flags))
 
     def _compile_cookies(self):
 
@@ -173,27 +184,28 @@ class Pholcidae:
             Fetches page by URL.
         """
 
-        if not self._unparsed_urls:
-            # exiting out from recursion
-            return True
+        # iterating over unparsed links
+        while self._unparsed_urls:
+            # getting link to get
+            url = self._unparsed_urls.pop()
 
-        # getting link to get
-        url = self._unparsed_urls.pop()
-        # moving url from unparsed to parsed list
-        self._parsed_urls.add(url)
-
-        # fetching page
-        page = self._fetch_url(url)
-        if page.status not in ['500, 404, 502']:
-            # parsing only valid URLs
-            if self._is_valid_link(link):
-                # sending raw HTML to crawl function
-                self.crawl(page)
-            # collecting links from page
-            self._get_page_links(page.body, page.url)
-
-        # trying next URL
-        self._get_page()
+            # fetching page
+            page = self._fetch_url(url)
+            if page.status not in [500, 404, 502]:
+                # parsing only valid urls
+                valid_match = self._is_valid_link(page.url)
+                if valid_match:
+                    # adding regex match to page object
+                    page.match = valid_match
+                    # sending raw HTML to crawl function
+                    self.crawl(page)
+                # moving url from unparsed to parsed list
+                self._parsed_urls.add(url)
+                # collecting links from page
+                self._get_page_links(page.body, page.url)
+            else:
+                # moving url from unparsed to failed list
+                self._failed_urls.add(url)
 
     def _get_page_links(self, raw_html, url):
 
@@ -208,34 +220,53 @@ class Pholcidae:
         links_groups = self._regex.href_links.findall(raw_html)
         links = [group[1] for group in links_groups]
         for link in links:
-            # getting link parts
-            link_info = urlparse.urlparse(link)
-            # if link not relative
-            if link_info.scheme or link_info.netloc:
-                # if stay_in_domain enabled and link outside of domain scope
-                if self._settings.stay_in_domain:
-                    if self._settings.domain not in link:
-                        continue  # throwing out invalid link
-            else:
-                # converting relative link into absolute
-                link = urlparse.urljoin(url, link)
-            # if link was not previously parsed
-            if link not in self._parsed_urls:
-                self._unparsed_urls.add(link)
+            # is link not excluded?
+            if not self._is_excluded(link):
+                # getting link parts
+                link_info = urlparse.urlparse(link)
+                # if link not relative
+                if link_info.scheme or link_info.netloc:
+                    # if stay_in_domain enabled and link outside of domain scope
+                    if self._settings.stay_in_domain:
+                        if self._settings.domain not in link:
+                            continue  # throwing out invalid link
+                else:
+                    # converting relative link into absolute
+                    link = urlparse.urljoin(url, link)
+                # if link was not previously parsed
+                if link not in self._parsed_urls:
+                    if link not in self._failed_urls:
+                        self._unparsed_urls.add(link)
 
     def _is_valid_link(self, link):
 
         """
             @type link str
-            @return bool
+            @return str
 
             Compares link with given regex to decide if we need to parse that
             page.
         """
 
+        # if hash in URL - assumimg anchor or AJAX
         if link and '#' not in link:
-            matches = self._regex.valid_link.search(link)
-            if matches:
+            for regex in self._regex.valid_link:
+                    matches = regex.findall(link)
+                    if matches:
+                        return matches[0]
+        return ''
+
+    def _is_excluded(self, link):
+
+        """
+            @type link str
+            @return bool
+
+            Checks if link matches exluded regex.
+        """
+
+        for regex in self._regex.invalid_link:
+            if regex.search(link):
                 return True
         return False
 
@@ -262,9 +293,14 @@ class Pholcidae:
             page.cookies = self._parse_cookies(page.headers)
             page.status = resp.getcode()
         except urllib2.HTTPError as error:
+            page = AttrDict()
             page.body = error.read()
             page.status = error.code
             page.url = url
+        except:
+            page = AttrDict()
+            page.status = 500  # drop invalid page with 500 HTTP error code
+            self._failed_urls.add(url)
 
         return page
 
@@ -315,7 +351,7 @@ class AttrDict(dict):
             raise AttributeError(name)
 
     def __setattr__(self, key, value):
-        self.update({key:value})
+        self.update({key: value})
 
 
 class PholcidaeRedirectHandler(urllib2.HTTPRedirectHandler):
