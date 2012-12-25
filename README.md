@@ -9,7 +9,7 @@ Pholcidae, commonly known as cellar spiders, are a spider family in the suborder
 About
 ------------
 
-Pholcidae is a tiny Python module allows you to fast and easy write your own crawl spider.
+Pholcidae is a tiny Python module allows you to write your own crawl spider fast and easy.
 
 Dependencies
 ------------
