@@ -185,10 +185,12 @@ class Pholcidae:
         # fetching page
         page = self._fetch_url(url)
         if page.status not in ['500, 404, 502']:
+            # parsing only valid URLs
+            if self._is_valid_link(link):
+                # sending raw HTML to crawl function
+                self.crawl(page)
             # collecting links from page
             self._get_page_links(page.body, page.url)
-            # sending raw HTML to crawl function
-            self.crawl(page)
 
         # trying next URL
         self._get_page()
@@ -206,22 +208,20 @@ class Pholcidae:
         links_groups = self._regex.href_links.findall(raw_html)
         links = [group[1] for group in links_groups]
         for link in links:
-            # comparing link with given pattern
-            if self._is_valid_link(link):
-                # getting link parts
-                link_info = urlparse.urlparse(link)
-                # if link not relative
-                if link_info.scheme or link_info.netloc:
-                    # if stay_in_domain enabled and link outside of domain scope
-                    if self._settings.stay_in_domain:
-                        if self._settings.domain not in link:
-                            continue  # throwing out invalid link
-                else:
-                    # converting relative link into absolute
-                    link = urlparse.urljoin(url, link)
-                # if link was not previously parsed
-                if link not in self._parsed_urls:
-                    self._unparsed_urls.add(link)
+            # getting link parts
+            link_info = urlparse.urlparse(link)
+            # if link not relative
+            if link_info.scheme or link_info.netloc:
+                # if stay_in_domain enabled and link outside of domain scope
+                if self._settings.stay_in_domain:
+                    if self._settings.domain not in link:
+                        continue  # throwing out invalid link
+            else:
+                # converting relative link into absolute
+                link = urlparse.urljoin(url, link)
+            # if link was not previously parsed
+            if link not in self._parsed_urls:
+                self._unparsed_urls.add(link)
 
     def _is_valid_link(self, link):
 
