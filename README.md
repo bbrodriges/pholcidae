@@ -51,6 +51,27 @@ Params you can use:
 * **valid_link** _string_ - regular expression string, which will be used to filter site URLs. Default: `(.*)`
 * **autostart** _bool_ - defines if crawler will be starter right after class initialization. Default: `False`
 * **cookies** _dict_ - a dictionary of string key-values which represents cookie name and cookie value to be passed with site URL request. Default: `{}`
+* **headers** _dict_ - a dictionary of string key-values which represents header name and value value to be passed with site URL request. Default: `{}`
+* **follow_redirects** _bool_ - allows crawler to bypass 30x headers and not follow redirects. Default: `True`
+
+Response attributes
+------------
+
+While inhrerit Pholcidae class you can override built-in `crawl()` method to retreive data gathered from page. Any response object will contain some attributes depending on successfulness of page parsing.
+
+**Successfull parsing**
+
+* **body** _string_ - raw HTML/XML/XHTML etc. representation of page.
+* **url** _string_ - URL of parsed page.
+* **headers** _AttrDict_ - dictionary of response headers.
+* **cookies** _AttrDict_ - dictionary of response cookies.
+* **status** _int_ - HTTP status of response (e.g. 200).
+
+**Unsuccessfull parsing**
+
+* **body** _string_ - raw representation of error.
+* **status** _int_ - HTTP status of response (e.g. 200).
+* **url** _string_ - URL of parsed page.
 
 Example with all settings
 ------------
@@ -79,6 +100,10 @@ spider = MySpider()
 ```
 
 In this example our crawler will parse `http://www.test.com` starting with `http://www.test.com/mypage/`. It will parse only URLs with will be like `product-xxxxx.html` (example: `product-2357451.html`). Also crawler will parse any link with does not belong to `http://www.test.com`, but they must apply `valid_link` rule. Cookie header `Cookie: session=KSnD5KtjKDTde2Q9WxVy4iaav7a2EK73V` will be attached to every page request. Crawler will be started right after `spider = MySpider()`, without calling `spider.start()`.
+
+Note
+------------
+Pholcidae does not contain any built-in XML, XHTML, HTML or other parser. You can manually add any response body parsing methods using any available python libraries you want.
 
 License
 ------------

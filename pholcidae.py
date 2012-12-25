@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 import re
 import urlparse
 import urllib2
@@ -16,7 +18,7 @@ class Pholcidae:
         """
 
         # default local urllib2 opener
-        self._opener = urllib2.build_opener()
+        self._opener = None
         # creating new lists of unparsed, alerady parsed and invalid URLs
         self._unparsed_urls = set()
         self._parsed_urls = set()
@@ -84,11 +86,19 @@ class Pholcidae:
         self._settings.autostart = False
         # cookies to be added to each request
         self._settings.cookies = {}
+        # custom headers to be added to each request
+        self._settings.headers = {}
+
 
         # updating settings with given values
         self._settings.update(self.settings)
-        # compiling cookies for better usage
+
+        # creating urllib2 opener
+        self._create_opener()
+        # compiling cookies
         self._compile_cookies()
+        # compiling headers
+        self._compile_headers()
 
         # adding start point into unparsed list
         start_url = '%s%s%s' % (self._settings.protocol, self._settings.domain,
@@ -106,7 +116,7 @@ class Pholcidae:
         # regexs container
         self._regex = AttrDict()
         # compiling regexs
-        flags = re.I | re.S # setting common flags
+        flags = re.I | re.S  # setting common flags
         # collects all links across given page
         self._regex.href_links = re.compile(r'<a\s(.*?)href="(.*?)"(.*?)>',
                                             flags=flags)
@@ -127,6 +137,31 @@ class Pholcidae:
             compiled.append('%s=%s' % (name, value))
         self._settings.cookies = ','.join(compiled)
         self._opener.addheaders.append(('Cookie', self._settings.cookies))
+
+    def _compile_headers(self):
+
+        """
+            @return void
+
+            Adds given dict of headers to urllib2 opener.
+        """
+
+        for header_name, header_value in self._settings.headers.iteritems():
+            self._opener.addheaders.append((header_name, header_value))
+
+    def _create_opener(self):
+
+        """
+            @return void
+
+            Creates local urllib2 opener and extends it with custom
+            redirect handler if needed.
+        """
+
+        self._opener = urllib2.build_opener()
+        if not self._settings.follow_redirects:
+            self._opener = urllib2.build_opener(PholcidaeRedirectHandler,
+                                                urllib2.HTTPCookieProcessor())
 
     ########################## CRAWLING METHODS ################################
 
@@ -149,7 +184,7 @@ class Pholcidae:
 
         # fetching page
         page = self._fetch_url(url)
-        if page.status == 200:
+        if page.status not in ['500, 404, 502']:
             # collecting links from page
             self._get_page_links(page.body, page.url)
             # sending raw HTML to crawl function
@@ -180,7 +215,7 @@ class Pholcidae:
                     # if stay_in_domain enabled and link outside of domain scope
                     if self._settings.stay_in_domain:
                         if self._settings.domain not in link:
-                            continue # throwing out invalid link
+                            continue  # throwing out invalid link
                 else:
                     # converting relative link into absolute
                     link = urlparse.urljoin(url, link)
@@ -224,6 +259,7 @@ class Pholcidae:
             page.body = resp.read()
             page.url = resp.geturl()
             page.headers = self._parse_headers(resp.info().headers)
+            page.cookies = self._parse_cookies(page.headers)
             page.status = resp.getcode()
         except urllib2.HTTPError as error:
             page.body = error.read()
@@ -247,10 +283,26 @@ class Pholcidae:
         for header in raw_headers:
             # removing extra characters
             header = self._regex.split_header.search(header)
-            key, value = header.group(0), header.group(1).strip()
+            key = header.group(1)
+            value = header.group(0).split(':', 1)[1].strip()
             headers.__setattr__(key, value)
         return headers
 
+    def _parse_cookies(self, headers):
+
+        """
+            @type headers AttrDict
+            @return AttrDict
+
+            Parses cookies from response headers.
+        """
+
+        cookies = AttrDict()
+        for key, value in headers.iteritems():
+            if key == 'Set-Cookie':
+                name, content = value.split(';', 1)[0].split('=')
+                cookies.__setattr__(name, content)
+        return cookies
 
 class AttrDict(dict):
 
@@ -264,3 +316,13 @@ class AttrDict(dict):
 
     def __setattr__(self, key, value):
         self.update({key:value})
+
+
+class PholcidaeRedirectHandler(urllib2.HTTPRedirectHandler):
+
+    """ Custom URL redirects handler. """
+
+    def http_error_302(self, req, fp, code, msg, headers):
+        return fp
+
+    http_error_301 = http_error_303 = http_error_307 = http_error_302
