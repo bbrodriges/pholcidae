@@ -1,9 +1,15 @@
 # -*- coding: UTF-8 -*-
 
+import sys
 import re
-import urlparse
-import urllib2
 
+# importing modules corresponding to Python version
+if sys.version_info < (3,0,0):
+    import urlparse
+    import urllib2
+else:
+    from urllib import request as urllib2
+    from urllib import parse as urlparse
 
 class Pholcidae:
 
@@ -141,7 +147,7 @@ class Pholcidae:
         """
 
         compiled = []
-        for name, value in self._settings.cookies.iteritems():
+        for name, value in self._settings.cookies.items():
             compiled.append('%s=%s' % (name, value))
         self._settings.cookies = ','.join(compiled)
         self._opener.addheaders.append(('Cookie', self._settings.cookies))
@@ -154,7 +160,7 @@ class Pholcidae:
             Adds given dict of headers to urllib2 opener.
         """
 
-        for header_name, header_value in self._settings.headers.iteritems():
+        for header_name, header_value in self._settings.headers.items():
             self._opener.addheaders.append((header_name, header_value))
 
     def _create_opener(self):
@@ -214,7 +220,7 @@ class Pholcidae:
             Parses out all links from crawled web page.
         """
 
-        links_groups = self._regex.href_links.findall(raw_html)
+        links_groups = self._regex.href_links.findall(str(raw_html))
         links = [group[1] for group in links_groups]
         for link in links:
             # is link not excluded?
@@ -286,40 +292,14 @@ class Pholcidae:
             resp = self._opener.open(url)
             page.body = resp.read()
             page.url = resp.geturl()
-            page.headers = self._parse_headers(resp.info().headers)
+            page.headers = AttrDict(dict(resp.headers.items()))
             page.cookies = self._parse_cookies(page.headers)
             page.status = resp.getcode()
-        except urllib2.HTTPError as error:
-            page = AttrDict()
-            page.body = error.read()
-            page.status = error.code
-            page.url = url
         except:
             page = AttrDict()
             page.status = 500  # drop invalid page with 500 HTTP error code
             self._failed_urls.add(url)
-
         return page
-
-    def _parse_headers(self, raw_headers):
-
-        """
-            @type raw_headers list
-            @return AttrDict
-
-            Parses headers returned by page.
-        """
-
-        # empty headers container
-        headers = AttrDict()
-
-        for header in raw_headers:
-            # removing extra characters
-            header = header.split(':', 1)
-            key = header[0].replace('-', '_').lower()
-            value = header[1].strip()
-            headers.update({key: value})
-        return headers
 
     def _parse_cookies(self, headers):
 
@@ -331,16 +311,26 @@ class Pholcidae:
         """
 
         cookies = AttrDict()
-        for key, value in headers.iteritems():
-            if key == 'Set-Cookie':
-                name, content = value.split(';', 1)[0].split('=')
-                cookies.__setattr__(name, content)
+        if 'set-cookie' in headers:
+            # splitting raw cookies
+            raw_cookies = headers['set-cookie'].split(';')
+            # cookie parts to throw out
+            throw_out = ['expires', 'path', 'domain', 'secure', 'HttpOnly']
+            for cookie in raw_cookies:
+                cookie = cookie.split('=')
+                if cookie[0].strip() not in throw_out:
+                    cookies.update({cookie[0]: cookie[1]})
         return cookies
 
 
 class AttrDict(dict):
 
     """ A dict that allows for object-like property access syntax. """
+
+    def __init__(self, new_dict=None):
+        dict.__init__(self)
+        if new_dict:
+            self.update(new_dict)
 
     def __getattr__(self, name):
         try:
