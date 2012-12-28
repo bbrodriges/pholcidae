@@ -250,7 +250,7 @@ class Pholcidae:
             for regex in self._regex.valid_link:
                     matches = regex.findall(link)
                     if matches:
-                        return matches[0]
+                        return matches
         return ''
 
     def _is_excluded(self, link):
