@@ -1,9 +1,15 @@
 # -*- coding: UTF-8 -*-
 
+import sys
 import re
-import urlparse
-import urllib2
 
+# importing modules corresponding to Python version
+if sys.version_info < (3,0,0):
+    import urlparse
+    import urllib2
+else:
+    from urllib import request as urllib2
+    from urllib import parse as urlparse
 
 class Pholcidae:
 
@@ -67,30 +73,29 @@ class Pholcidae:
             Extends default settings with given settings.
         """
 
-        # creating settings object
-        self._settings = AttrDict()
-
-        # filling up default settings
-        # do we need to follow HTTP redirects?
-        self._settings.follow_redirects = True
-        # what page links do we need to parse?
-        self._settings.valid_links = ['(.*)']
-        # what URLs must be excluded
-        self._settings.exclude_links = []
-        # what is an entry point for crawler??
-        self._settings.start_page = '/'
-        # which domain should we parse?
-        self._settings.domain = ''
-        # should we ignor pages outside of the given domain?
-        self._settings.stay_in_domain = True
-        # which protocol do we need to use?
-        self._settings.protocol = 'http://'
-        # autostart crawler right after initialization?
-        self._settings.autostart = False
-        # cookies to be added to each request
-        self._settings.cookies = {}
-        # custom headers to be added to each request
-        self._settings.headers = {}
+        # creating default settings object
+        self._settings = AttrDict({
+            # do we need to follow HTTP redirects?
+            'follow_redirects': True,
+            # what page links do we need to parse?
+            'valid_links': ['(.*)'],
+            # what URLs must be excluded
+            'exclude_links': [],
+            # what is an entry point for crawler?
+            'start_page': '/',
+            # which domain should we parse?
+            'domain': '',
+            # should we ignor pages outside of the given domain?
+            'stay_in_domain': True,
+            # which protocol do we need to use?
+            'protocol': 'http://',
+            # autostart crawler right after initialization?
+            'autostart': False,
+            # cookies to be added to each request
+            'cookies': {},
+            # custom headers to be added to each request
+            'headers': {}
+        })
 
         # updating settings with given values
         self._settings.update(self.settings)
@@ -115,20 +120,24 @@ class Pholcidae:
             Compiles regular expressions for further use.
         """
 
-        # regexs container
-        self._regex = AttrDict()
+        # setting default flags
+        flags = re.I | re.S
         # compiling regexs
-        flags = re.I | re.S  # setting common flags
-        # collects all links across given page
-        self._regex.href_links = re.compile(r'<a\s(.*?)href="(.*?)"(.*?)>',
-                                            flags=flags)
+        self._regex = AttrDict({
+            # collects all links across given page
+            'href_links': re.compile(r'<a\s(.*?)href="(.*?)"(.*?)>',
+                                     flags=flags),
+            # valid links regexs
+            'valid_link': [],
+            # invalid links regexs
+            'invalid_link': []
+        })
+
         # complinig valid links regexs
-        self._regex.valid_link = []
         for regex in self._settings.valid_links:
             self._regex.valid_link.append(re.compile(regex, flags=flags))
 
         # compiling invalid links regexs
-        self._regex.invalid_link = []
         for regex in self._settings.exclude_links:
             self._regex.invalid_link.append(re.compile(regex, flags=flags))
 
@@ -141,7 +150,7 @@ class Pholcidae:
         """
 
         compiled = []
-        for name, value in self._settings.cookies.iteritems():
+        for name, value in self._settings.cookies.items():
             compiled.append('%s=%s' % (name, value))
         self._settings.cookies = ','.join(compiled)
         self._opener.addheaders.append(('Cookie', self._settings.cookies))
@@ -154,7 +163,7 @@ class Pholcidae:
             Adds given dict of headers to urllib2 opener.
         """
 
-        for header_name, header_value in self._settings.headers.iteritems():
+        for header_name, header_value in self._settings.headers.items():
             self._opener.addheaders.append((header_name, header_value))
 
     def _create_opener(self):
@@ -214,7 +223,7 @@ class Pholcidae:
             Parses out all links from crawled web page.
         """
 
-        links_groups = self._regex.href_links.findall(raw_html)
+        links_groups = self._regex.href_links.findall(str(raw_html))
         links = [group[1] for group in links_groups]
         for link in links:
             # is link not excluded?
@@ -284,63 +293,51 @@ class Pholcidae:
         try:
             # getting response from given URL
             resp = self._opener.open(url)
-            page.body = resp.read()
-            page.url = resp.geturl()
-            page.headers = self._parse_headers(resp.info().headers)
-            page.cookies = self._parse_cookies(page.headers)
-            page.status = resp.getcode()
-        except urllib2.HTTPError as error:
-            page = AttrDict()
-            page.body = error.read()
-            page.status = error.code
-            page.url = url
+            page = AttrDict({
+                'body': resp.read(),
+                'url': resp.geturl(),
+                'headers': AttrDict(dict(resp.headers.items())),
+                'cookies': self._parse_cookies(dict(resp.headers.items())),
+                'status': resp.getcode()
+            })
         except:
-            page = AttrDict()
-            page.status = 500  # drop invalid page with 500 HTTP error code
+            # drop invalid page with 500 HTTP error code
+            page = AttrDict({'status': 500})
             self._failed_urls.add(url)
-
         return page
-
-    def _parse_headers(self, raw_headers):
-
-        """
-            @type raw_headers list
-            @return AttrDict
-
-            Parses headers returned by page.
-        """
-
-        # empty headers container
-        headers = AttrDict()
-
-        for header in raw_headers:
-            # removing extra characters
-            header = header.split(':', 1)
-            key = header[0].replace('-', '_').lower()
-            value = header[1].strip()
-            headers.update({key: value})
-        return headers
 
     def _parse_cookies(self, headers):
 
         """
-            @type headers AttrDict
+            @type headers dict
             @return AttrDict
 
             Parses cookies from response headers.
         """
 
         cookies = AttrDict()
-        for key, value in headers.iteritems():
-            if key == 'Set-Cookie':
-                name, content = value.split(';', 1)[0].split('=')
-                cookies.__setattr__(name, content)
+        # lowering headers keys
+        headers = {k.lower(): v for k,v in headers.items()}
+        if 'set-cookie' in headers:
+            # splitting raw cookies
+            raw_cookies = headers['set-cookie'].split(';')
+            # cookie parts to throw out
+            throw_out = ['expires', 'path', 'domain', 'secure', 'HttpOnly']
+            for cookie in raw_cookies:
+                cookie = cookie.split('=')
+                if cookie[0].strip() not in throw_out:
+                    cookies.update({cookie[0]: cookie[1]})
         return cookies
 
 
 class AttrDict(dict):
 
     """ A dict that allows for object-like property access syntax. """
+
+    def __init__(self, new_dict=None):
+        dict.__init__(self)
+        if new_dict:
+            self.update(new_dict)
 
     def __getattr__(self, name):
         try:
