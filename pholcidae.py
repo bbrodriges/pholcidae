@@ -92,7 +92,6 @@ class Pholcidae:
         # custom headers to be added to each request
         self._settings.headers = {}
 
-
         # updating settings with given values
         self._settings.update(self.settings)
 
@@ -123,8 +122,6 @@ class Pholcidae:
         # collects all links across given page
         self._regex.href_links = re.compile(r'<a\s(.*?)href="(.*?)"(.*?)>',
                                             flags=flags)
-        self._regex.split_header = re.compile(r'^(.*?):(.*)$', flags=flags)
-
         # complinig valid links regexs
         self._regex.valid_link = []
         for regex in self._settings.valid_links:
@@ -318,10 +315,10 @@ class Pholcidae:
 
         for header in raw_headers:
             # removing extra characters
-            header = self._regex.split_header.search(header)
-            key = header.group(1)
-            value = header.group(0).split(':', 1)[1].strip()
-            headers.__setattr__(key, value)
+            header = header.split(':', 1)
+            key = header[0].replace('-', '_').lower()
+            value = header[1].strip()
+            headers.update({key: value})
         return headers
 
     def _parse_cookies(self, headers):
@@ -339,6 +336,7 @@ class Pholcidae:
                 name, content = value.split(';', 1)[0].split('=')
                 cookies.__setattr__(name, content)
         return cookies
+
 
 class AttrDict(dict):
 
