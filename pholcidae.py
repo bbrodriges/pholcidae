@@ -2,6 +2,7 @@
 
 import sys
 import re
+import heapq
 
 # importing modules corresponding to Python version
 if sys.version_info < (3,0,0):
@@ -25,10 +26,8 @@ class Pholcidae:
 
         # default local urllib2 opener
         self._opener = None
-        # creating new sets of unparsed, already parsed and failed URLs
-        self._unparsed_urls = set()
-        self._parsed_urls = set()
-        self._failed_urls = set()
+        # creating new PriorityList for URLs
+        self._unparsed_urls = PriorityList()
         # extending settings with given values
         self._extend_settings()
         # compiling regular expressions
@@ -110,6 +109,7 @@ class Pholcidae:
         # adding start point into unparsed list
         start_url = '%s%s%s' % (self._settings.protocol, self._settings.domain,
                                 self._settings.start_page)
+        # adding start url to priority list with lesser priority
         self._unparsed_urls.add(start_url)
 
     def _compile_regexs(self):
@@ -191,27 +191,21 @@ class Pholcidae:
         """
 
         # iterating over unparsed links
-        while self._unparsed_urls:
+        while self._unparsed_urls.heap:
             # getting link to get
-            url = self._unparsed_urls.pop()
+            priority, url, matches = self._unparsed_urls.get()
 
             # fetching page
             page = self._fetch_url(url)
             if page.status not in [500, 404, 502]:
-                # parsing only valid urls
-                valid_match = self._is_valid_link(page.url)
-                if valid_match:
+                # parsing only valid urls (with higher priority)
+                if priority == 0:
                     # adding regex match to page object
-                    page.match = valid_match
-                    # sending raw HTML to crawl function
+                    page.match = matches
+                    # sending collected data to crawl function
                     self.crawl(page)
-                # moving url from unparsed to parsed list
-                self._parsed_urls.add(url)
                 # collecting links from page
                 self._get_page_links(page.body, page.url)
-            else:
-                # moving url from unparsed to failed list
-                self._failed_urls.add(url)
 
     def _get_page_links(self, raw_html, url):
 
@@ -234,21 +228,19 @@ class Pholcidae:
                 if link_info.scheme or link_info.netloc:
                     # if stay_in_domain enabled and link outside of domain scope
                     if self._settings.stay_in_domain:
-                        if self._settings.domain not in link:
+                        if self._settings.domain not in link_info.netloc:
                             continue  # throwing out invalid link
-                else:
-                    # converting relative link into absolute
-                    link = urlparse.urljoin(url, link)
-                # if link was not previously parsed
-                if link not in self._parsed_urls:
-                    if link not in self._failed_urls:
-                        self._unparsed_urls.add(link)
+                # converting relative link into absolute
+                link = urlparse.urljoin(url, link)
+                # setting higher priority if link is valid
+                # if matches found - writing down and calcutaing priority
+                self._unparsed_urls.add(link, self._is_valid_link(link))
 
     def _is_valid_link(self, link):
 
         """
             @type link str
-            @return str
+            @return list
 
             Compares link with given regex to decide if we need to parse that
             page.
@@ -260,7 +252,7 @@ class Pholcidae:
                     matches = regex.findall(link)
                     if matches:
                         return matches
-        return ''
+        return []
 
     def _is_excluded(self, link):
 
@@ -303,7 +295,6 @@ class Pholcidae:
         except:
             # drop invalid page with 500 HTTP error code
             page = AttrDict({'status': 500})
-            self._failed_urls.add(url)
         return page
 
     def _parse_cookies(self, headers):
@@ -357,3 +348,40 @@ class PholcidaeRedirectHandler(urllib2.HTTPRedirectHandler):
         return fp
 
     http_error_301 = http_error_303 = http_error_307 = http_error_302
+
+
+class PriorityList(object):
+
+    """ List with priority. """
+
+    def __init__(self):
+        self.heap = []
+        self._set = set()
+
+    def __repr__(self):
+        return str(self.heap)
+
+    def add(self, element, matches=[]):
+
+        """
+            @type element mixed
+            @type matches list
+            @return void
+
+            Appends element to list.
+        """
+
+        if element not in self._set:
+            priority, matches = int(not bool(matches)), matches
+            heapq.heappush(self.heap, (priority, element, matches))
+            self._set.add(element)
+
+    def get(self):
+
+        """
+            @return tuple
+
+            Pops element out from list.
+        """
+
+        return heapq.heappop(self.heap)
