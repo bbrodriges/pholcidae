@@ -36,6 +36,10 @@ class Pholcidae:
         if self._settings.autostart:
             self.start()
 
+    ############################################################################
+    # PUBLIC METHODS                                                           #
+    ############################################################################
+
     def crawl(self, response):
 
         """
@@ -56,6 +60,9 @@ class Pholcidae:
             Simple crawler start trigger.
         """
 
+        # trying to call precrawl function
+        self._call_precrawl()
+        # start crawling
         self._get_page()
 
     ############################################################################
@@ -93,7 +100,11 @@ class Pholcidae:
             # cookies to be added to each request
             'cookies': {},
             # custom headers to be added to each request
-            'headers': {}
+            'headers': {},
+            # precrawl function to execute
+            'precrawl': None,
+            # postcrawl fucntion to execute
+            'postcrawl': None
         })
 
         # updating settings with given values
@@ -180,6 +191,34 @@ class Pholcidae:
             self._opener = urllib2.build_opener(PholcidaeRedirectHandler,
                                                 urllib2.HTTPCookieProcessor())
 
+    ################### PRE AND POST CRAWL METHODS CALLERS #####################
+
+    def _call_precrawl(self):
+
+        """
+            @return void
+
+            Calls given precrawl function if given.
+        """
+
+        # if precrawl function given - execute it
+        precrawl = self._settings.precrawl
+        if precrawl:
+            getattr(self, precrawl)()
+
+    def _call_postcrawl(self):
+
+        """
+            @return void
+
+            Calls given postcrawl function if given.
+        """
+
+        # if postcrawl function given - execute it
+        postcrawl = self._settings.postcrawl
+        if postcrawl:
+            getattr(self, postcrawl)()
+
     ########################## CRAWLING METHODS ################################
 
     def _get_page(self):
@@ -207,6 +246,9 @@ class Pholcidae:
                 # collecting links from page
                 self._get_page_links(page.body, page.url)
 
+        # calls postcrawl after heap looping
+        self._call_postcrawl()
+
     def _get_page_links(self, raw_html, url):
 
         """
@@ -232,6 +274,8 @@ class Pholcidae:
                             continue  # throwing out invalid link
                 # converting relative link into absolute
                 link = urlparse.urljoin(url, link)
+                # stripping unnecessary elements from link string
+                link = link.strip()
                 # setting higher priority if link is valid
                 # if matches found - writing down and calcutaing priority
                 self._unparsed_urls.add(link, self._is_valid_link(link))
@@ -368,10 +412,12 @@ class PriorityList(object):
             @type matches list
             @return void
 
-            Appends element to list.
+            Appends element to list with priority.
         """
 
         if element not in self._set:
+            # the "int(not bool(matches))" will produce 0 (higher) priority
+            # for valid links and 1 (lower) priority to invalid links
             priority, matches = int(not bool(matches)), matches
             heapq.heappush(self.heap, (priority, element, matches))
             self._set.add(element)
