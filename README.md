@@ -54,6 +54,8 @@ Params you can use:
 * **cookies** _dict_ - a dictionary of string key-values which represents cookie name and cookie value to be passed with site URL request. Default: `{}`
 * **headers** _dict_ - a dictionary of string key-values which represents header name and value value to be passed with site URL request. Default: `{}`
 * **follow_redirects** _bool_ - allows crawler to bypass 30x headers and not follow redirects. Default: `True`
+* **precrawl** _string_ - name of function which will be called before start of crawler. Default: `None`
+* **postcrawl** _string_ - name of function which will be called after the end crawlering. Default: `None`
 
 Response attributes
 ------------
