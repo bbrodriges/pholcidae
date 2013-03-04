@@ -121,7 +121,7 @@ class Pholcidae:
         start_url = '%s%s%s' % (self._settings.protocol, self._settings.domain,
                                 self._settings.start_page)
         # adding start url to priority list with lesser priority
-        self._unparsed_urls.add(start_url)
+        self._unparsed_urls.add(start_url, matches=[], priority=0)
 
     def _compile_regexs(self):
 
@@ -262,23 +262,34 @@ class Pholcidae:
         links_groups = self._regex.href_links.findall(str(raw_html))
         links = [group[1] for group in links_groups]
         for link in links:
+            # default priority
+            priority = None
             # is link not excluded?
             if not self._is_excluded(link):
                 # getting link parts
                 link_info = urlparse.urlparse(link)
                 # if link not relative
                 if link_info.scheme or link_info.netloc:
-                    # if stay_in_domain enabled and link outside of domain scope
-                    if self._settings.stay_in_domain:
-                        if self._settings.domain not in link_info.netloc:
+                    # link is outside of domain scope
+                    if self._settings.domain not in link_info.netloc:
+                        # stay_in_domain enabled
+                        if self._settings.stay_in_domain:
                             continue  # throwing out invalid link
+                        else:
+                            # 2 (lowest) priority for "out-of-domain" links
+                            priority = 2
+                        # average priority for "in-domain" links
                 # converting relative link into absolute
                 link = urlparse.urljoin(url, link)
                 # stripping unnecessary elements from link string
                 link = link.strip()
-                # setting higher priority if link is valid
                 # if matches found - writing down and calcutaing priority
-                self._unparsed_urls.add(link, self._is_valid_link(link))
+                matches = self._is_valid_link(link)
+                # the "int(not bool(matches))" will produce 0 (higher) priority
+                # for valid links and 1 (lower) priority to invalid links
+                priority = int(not bool(matches)) if not priority else priority
+                # adding link to heap
+                self._unparsed_urls.add(link, matches, priority)
 
     def _is_valid_link(self, link):
 
@@ -405,20 +416,18 @@ class PriorityList(object):
     def __repr__(self):
         return str(self.heap)
 
-    def add(self, element, matches=[]):
+    def add(self, element, matches, priority):
 
         """
             @type element mixed
             @type matches list
+            @type priority int
             @return void
 
             Appends element to list with priority.
         """
 
         if element not in self._set:
-            # the "int(not bool(matches))" will produce 0 (higher) priority
-            # for valid links and 1 (lower) priority to invalid links
-            priority, matches = int(not bool(matches)), matches
             heapq.heappush(self.heap, (priority, element, matches))
             self._set.add(element)
 
