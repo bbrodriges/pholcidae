@@ -1,4 +1,4 @@
-pholcidae - Tiny python web crawler
+PHOLCIDAE - Tiny python web crawler
 =========
 
 Pholcidae
