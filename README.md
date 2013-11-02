@@ -56,6 +56,7 @@ Params you can use:
 * **follow_redirects** _bool_ - allows crawler to bypass 30x headers and not follow redirects. Default: `True`
 * **precrawl** _string_ - name of function which will be called before start of crawler. Default: `None`
 * **postcrawl** _string_ - name of function which will be called after the end crawlering. Default: `None`
+* **callbacks** _dict_ - a dictionary of key-values which represents URL pattern from `valid_links` dict and string name of self defined method to get parsed data. Default: `{}`
 
 Response attributes
 ------------
@@ -89,7 +90,7 @@ class MySpider(Pholcidae):
 		'start_page': '/mypage/',
 		'protocol': 'http://',
 		'stay_in_domain': False,
-		'valid_links': ['product-(.*).html'],
+		'valid_links': ['product-(.*).html', 'book-(.*).html'],
 		'exclude_links': ['\/forum\/(.*)'],
 		'autostart': True,
 		'cookies': {
@@ -97,17 +98,30 @@ class MySpider(Pholcidae):
 		},
 		'headers': {
 			'Referer': 'http://mysite.com/'
-		}
+		},
+		'precrawl': 'before_parse',
+		'postcrawl': 'after_parse',
+		'callbacks': {'product-(.*).html': 'custom_callback'}
 	}
 
 	def crawl(self, data):
-		query = 'INSERT INTO crawled (url, status, body) VALUES("%s", %i, "%s")' % (data.url, data.status, data.body)
+		query = 'INSERT INTO books (url, status, body) VALUES("%s", %i, "%s")' % (data.url, data.status, data.body)
+    	database.execute(query)
+
+    def before_parse(self):
+    	print('Parse started')
+
+    def after_parse(self):
+    	print('Parse ended')
+
+    def custom_callback(self, data):
+    	query = 'INSERT INTO products (url, status, body) VALUES("%s", %i, "%s")' % (data.url, data.status, data.body)
     	database.execute(query)
 
 spider = MySpider()
 ```
 
-In this example our crawler will parse `http://www.test.com` starting with `http://www.test.com/mypage/`. It will pass to `crawl()` method only URLs which will be like `product-xxxxx.html` (example: `product-2357451.html`) and avoid to collect links from any URL with ".../forum/..." in it. Also crawler will parse any link with does not belong to `http://www.test.com`, but they must apply `valid_link` rule. Cookie `Cookie: session=KSnD5KtjKDTde2Q9WxVy4iaav7a2EK73V` and custom `Referer: http://mysite.com/` headers will be attached to every page request. Crawler will be started right after `spider = MySpider()`, without calling `spider.start()`.
+In this example our crawler will parse `http://www.test.com` starting with `http://www.test.com/mypage/`. It will pass to `crawl()` method only URLs which will be like `product-xxxxx.html` or `book-xxxxx.html` (example: `product-2357451.html`, `book-234234.html`) and avoid to collect links from any URL with ".../forum/..." in it. Also crawler will parse any link with does not belong to `http://www.test.com`, but they must apply `valid_link` rule. Any data extracted from link that matches pattern `product-(.*).html` will be passed to `custom_callback()` method and other links data will be passed to default `crawl()` method. Cookie `Cookie: session=KSnD5KtjKDTde2Q9WxVy4iaav7a2EK73V` and custom `Referer: http://mysite.com/` headers will be attached to every page request. Crawler will be started right after `spider = MySpider()`, without calling `spider.start()`.
 
 Note
 ------------

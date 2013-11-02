@@ -106,7 +106,7 @@ class Pholcidae:
             # postcrawl fucntion to execute
             'postcrawl': None,
             # custom callbacks list
-            'callbacks': []
+            'callbacks': {}
         })
 
         # updating settings with given values
