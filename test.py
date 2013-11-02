@@ -8,6 +8,10 @@ class MyTestSpider(Pholcidae):
     def after(self):
         print('-------- POSTCRAWL ----------')
 
+    def my_callback(self, data):
+        print('-------- MY CALLBACK ----------')
+        print(data.url, data.status)
+
     def crawl(self, data):
         print(data.url, data.status)
 
@@ -17,7 +21,8 @@ class MyTestSpider(Pholcidae):
         'valid_links':  ['(.*)'],
         'exclude_links': ['ClaymontJPEGS'],
         'precrawl': 'before',
-        'postcrawl': 'after'
+        'postcrawl': 'after',
+        'callbacks': {'(.*)': 'my_callback'}
     }
 
 spider = MyTestSpider()

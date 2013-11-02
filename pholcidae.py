@@ -104,7 +104,9 @@ class Pholcidae:
             # precrawl function to execute
             'precrawl': None,
             # postcrawl fucntion to execute
-            'postcrawl': None
+            'postcrawl': None,
+            # custom callbacks list
+            'callbacks': []
         })
 
         # updating settings with given values
@@ -191,7 +193,7 @@ class Pholcidae:
             self._opener = urllib2.build_opener(PholcidaeRedirectHandler,
                                                 urllib2.HTTPCookieProcessor())
 
-    ################### PRE AND POST CRAWL METHODS CALLERS #####################
+    ############## PRE, POST CRAWL AND CUSTOM CALLBACK METHODS CALLERS ##################
 
     def _call_precrawl(self):
 
@@ -219,12 +221,28 @@ class Pholcidae:
         if postcrawl:
             getattr(self, postcrawl)()
 
+    def _call_custom_callback(self, url_pattern, data):
+
+        """
+        	@type url_pattern string
+            @return void
+
+            Calls custom callback function for current URL pattern, if given.
+        """
+
+        # if postcrawl function given - execute it
+        callback = self._settings.callbacks[url_pattern]
+        if callback:
+            getattr(self, callback)(data)
+        else:
+        	self.parse(page)
+
     ########################## CRAWLING METHODS ################################
 
     def _get_page(self):
 
         """
-            @return bool
+            @return void
 
             Fetches page by URL.
         """
@@ -241,8 +259,10 @@ class Pholcidae:
                 if priority == 0:
                     # adding regex match to page object
                     page.match = matches
-                    # sending collected data to crawl function
-                    self.crawl(page)
+                    # determining regex pattern for current url
+                    url_pattern = self._get_link_pattern(page.url)
+                    # sending collected data to custom or crawl function
+                    self._call_custom_callback(url_pattern, page)
                 # collecting links from page
                 self._get_page_links(page.body, page.url)
 
@@ -322,6 +342,22 @@ class Pholcidae:
             if regex.search(link):
                 return True
         return False
+
+    def _get_link_pattern(self, link):
+
+    	"""
+            @type link str
+            @return str
+
+            Returns pattern for link.
+        """
+
+        if link and '#' not in link:
+            for regex in self._regex.valid_link:
+                    matches = regex.findall(link)
+                    if matches:
+                        return regex.pattern
+        return ''
 
     ######################### URL FETCHING METHODS #############################
 
