@@ -231,11 +231,12 @@ class Pholcidae:
         """
 
         # if postcrawl function given - execute it
-        callback = self._settings.callbacks[url_pattern]
-        if callback:
-            getattr(self, callback)(data)
-        else:
-        	self.parse(page)
+        if url_pattern in self._settings.callbacks:
+            callback = self._settings.callbacks[url_pattern]
+            if callback:
+                getattr(self, callback)(data)
+                pass
+        self.crawl(data)
 
     ########################## CRAWLING METHODS ################################
 
