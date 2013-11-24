@@ -32,6 +32,7 @@ class Pholcidae:
         self._extend_settings()
         # compiling regular expressions
         self._compile_regexs()
+
         # autostart crawler if settings allows
         if self._settings.autostart:
             self.start()
@@ -248,6 +249,8 @@ class Pholcidae:
             Fetches page by URL.
         """
 
+        valid_statuses = xrange(200, 299)
+
         # iterating over unparsed links
         while self._unparsed_urls.heap:
             # getting link to get
@@ -255,7 +258,7 @@ class Pholcidae:
 
             # fetching page
             page = self._fetch_url(url)
-            if page.status not in [500, 404, 502]:
+            if page.status in valid_statuses:
                 # parsing only valid urls (with higher priority)
                 if priority == 0:
                     # adding regex match to page object
