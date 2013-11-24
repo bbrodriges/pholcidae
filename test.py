@@ -1,6 +1,6 @@
-from pholcidae import Pholcidae
+from pholcidae2 import Pholcidae2
 
-class MyTestSpider(Pholcidae):
+class MyTestSpider(Pholcidae2):
 
     def before(self):
         print('-------- PRECRAWL ----------')
