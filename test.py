@@ -20,6 +20,7 @@ class MyTestSpider(Pholcidae):
         'start_page':   '/',
         'valid_links':  ['(.*)'],
         'exclude_links': ['ClaymontJPEGS'],
+        'append_to_links': '?a=b',
         'precrawl': 'before',
         'postcrawl': 'after',
         'callbacks': {'(.*)': 'my_callback'}
