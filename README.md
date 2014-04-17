@@ -49,6 +49,7 @@ Params you can use:
 * **protocol** _string_ - defines protocol to be used by crawler. Default: `http://`
 * **stay_in_domain** _bool_ - defines ability of crawler to leave passed domain to crawl out-of-domain pages. Default: `True`
 * **valid_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs to be passed to `crawl()` method. Default: `['(.*)']`
+* **append_to_links** _string_ - text to be appended to each link before fetching it. Default: `''`
 * **exclude_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs which must not be checked at all. Default: `[]`
 * **autostart** _bool_ - defines if crawler will be starter right after class initialization. Default: `False`
 * **cookies** _dict_ - a dictionary of string key-values which represents cookie name and cookie value to be passed with site URL request. Default: `{}`

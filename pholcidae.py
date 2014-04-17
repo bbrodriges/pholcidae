@@ -84,6 +84,8 @@ class Pholcidae:
         self._settings = AttrDict({
             # do we need to follow HTTP redirects?
             'follow_redirects': True,
+            # what should we append to all links?
+            'append_to_links': '',
             # what page links do we need to parse?
             'valid_links': ['(.*)'],
             # what URLs must be excluded
@@ -378,11 +380,11 @@ class Pholcidae:
         page = AttrDict()
 
         try:
-            # getting response from given URL
-            resp = self._opener.open(url)
+            # getting response from given URL plus text to append
+            resp = self._opener.open(url + self._settings.append_to_links)
             page = AttrDict({
                 'body': resp.read(),
-                'url': resp.geturl(),
+                'url': re.sub(re.escape(self._settings.append_to_links) + '$', '', resp.geturl()),
                 'headers': AttrDict(dict(resp.headers.items())),
                 'cookies': self._parse_cookies(dict(resp.headers.items())),
                 'status': resp.getcode()
@@ -411,7 +413,7 @@ class Pholcidae:
             throw_out = ['expires', 'path', 'domain', 'secure', 'HttpOnly']
             for cookie in raw_cookies:
                 cookie = cookie.split('=')
-                if cookie[0].strip() not in throw_out:
+                if cookie[0].strip() not in throw_out and len(cookie) > 1:
                     cookies.update({cookie[0]: cookie[1]})
         return cookies
 
