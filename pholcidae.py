@@ -238,7 +238,7 @@ class Pholcidae:
             callback = self._settings.callbacks[url_pattern]
             if callback:
                 getattr(self, callback)(data)
-                pass
+                return
         self.crawl(data)
 
     ########################## CRAWLING METHODS ################################
