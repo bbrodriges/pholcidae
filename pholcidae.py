@@ -227,7 +227,7 @@ class Pholcidae:
     def _call_custom_callback(self, url_pattern, data):
 
         """
-        	@type url_pattern string
+            @type url_pattern string
             @return void
 
             Calls custom callback function for current URL pattern, if given.
@@ -251,7 +251,7 @@ class Pholcidae:
             Fetches page by URL.
         """
 
-        valid_statuses = xrange(200, 299)
+        valid_statuses = range(200, 299)
 
         # iterating over unparsed links
         while self._unparsed_urls.heap:
@@ -351,7 +351,7 @@ class Pholcidae:
 
     def _get_link_pattern(self, link):
 
-    	"""
+        """
             @type link str
             @return str
 
