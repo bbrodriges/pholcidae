@@ -3,6 +3,9 @@
 import sys
 import re
 import heapq
+import sqlite3
+import os
+import mimetypes
 
 # importing modules corresponding to Python version
 if sys.version_info < (3,0,0):
@@ -285,6 +288,12 @@ class Pholcidae:
             Parses out all links from crawled web page.
         """
 
+        # only trying to extract links from HTML pages
+        # not images, audio, etc.
+        url_type = mimetypes.guess_type(url, True)[0]
+        if url_type not in ['text/html', None]:
+            return
+
         links_groups = self._regex.href_links.findall(str(raw_html))
         links = [group[1] for group in links_groups]
         for link in links:
@@ -455,6 +464,9 @@ class PriorityList(object):
         self.heap = []
         self._set = set()
 
+        self._set_disk_sync_freq = 10000
+        self._sync_storage = SyncStorage()
+
     def __repr__(self):
         return str(self.heap)
 
@@ -469,9 +481,37 @@ class PriorityList(object):
             Appends element to list with priority.
         """
 
-        if element not in self._set:
+        if not self.is_parsed(element):
             heapq.heappush(self.heap, (priority, element, matches))
+
             self._set.add(element)
+            self.sync_list()
+
+    def is_parsed(self, element):
+
+        """
+            @return bool
+
+            Checks if given URL has ever been added to priority list.
+        """
+
+        if element not in self._set and not self._sync_storage.find(element):
+            return False
+        return True
+
+    def sync_list(self):
+
+        """
+            @return void
+
+            Syncs list to persistent storage.
+        """
+
+        if len(self._set) % self._set_disk_sync_freq == 0:
+            sync_list = []
+            for x in range(0, self._set_disk_sync_freq - 1):
+               sync_list.append(self._set.pop())
+            self._sync_storage.write(sync_list)
 
     def get(self):
 
@@ -482,3 +522,65 @@ class PriorityList(object):
         """
 
         return heapq.heappop(self.heap)
+
+class SyncStorage(object):
+
+    """ Storage to sync parsed URLs set to persistent storage. """
+
+    def __init__(self):
+        self._storage_file = 'pholcidae.db'
+        self._connection = sqlite3.connect(self._storage_file)
+        self._cursor = self._connection.cursor()
+
+        self.prepare_storage()
+
+    def __del__(self):
+        self._cursor.close()
+        self._connection.close()
+        os.remove(self._storage_file)
+
+    def prepare_storage(self):
+
+        """
+            @return void
+
+            Prepares storage.
+        """
+
+        # creating table to store URLs
+        self._cursor.execute('CREATE TABLE `parsed_urls` (`url` VARCHAR(3000) NOT NULL);')
+        # creating index on url field
+        self._cursor.execute('CREATE UNIQUE INDEX `url_UNIQUE` ON `parsed_urls` (`url` ASC);')
+
+        self._connection.commit()
+
+    def write(self, elements):
+
+        """
+            @type elements mixed
+            @return void
+
+            Writes element into storage.
+        """
+
+        if not isinstance(elements, (list, set, dict)):
+            elements = [elements]
+
+        for element in elements:
+            self._cursor.execute('INSERT OR IGNORE INTO `parsed_urls` (`url`) VALUES (?);', (element,))
+
+        self._connection.commit()
+
+    def find(self, element):
+
+        """
+            @type element string
+            @return bool
+
+            Finds element in storage.
+        """
+
+        self._cursor.execute('SELECT url FROM `parsed_urls` WHERE url = ?;', (element,))
+        self._connection.commit()
+
+        return bool(self._cursor.fetchone())
