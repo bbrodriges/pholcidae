@@ -59,7 +59,7 @@ Params you can use:
 * **precrawl** _string_ - name of function which will be called before start of crawler. Default: `None`
 * **postcrawl** _string_ - name of function which will be called after the end crawlering. Default: `None`
 * **callbacks** _dict_ - a dictionary of key-values which represents URL pattern from `valid_links` dict and string name of self defined method to get parsed data. Default: `{}`
-* **proxy** _dict_ - a dictionary mapping protocol names to URLs of proxies
+* **proxy** _dict_ - a dictionary mapping protocol names to URLs of proxies, e.g., {'http': 'http://user:passwd@host:port'}
 
 Response attributes
 ------------
