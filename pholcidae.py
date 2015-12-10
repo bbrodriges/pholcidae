@@ -557,12 +557,12 @@ class SyncStorage(object):
             Prepares SQLite commands.
         """
 
-        self._sqlite_cmmands = AttrDict({
+        self._sqlite_commands = AttrDict({
             'create':    'CREATE TABLE `parsed_urls` (`url` VARCHAR(3000) NOT NULL);',
             'add_index': 'CREATE UNIQUE INDEX `url_UNIQUE` ON `parsed_urls` (`url` ASC);',
             'insert':    'INSERT OR IGNORE INTO `parsed_urls` (`url`) VALUES (?);',
             'select':    'SELECT url FROM `parsed_urls` WHERE url = ?;'
-        });
+        })
 
     def prepare_storage(self):
 
@@ -573,8 +573,8 @@ class SyncStorage(object):
         """
 
         # creating table to store URLs
-        self._cursor.execute(self._sqlite_cmmands.create)
-        self._cursor.execute(self._sqlite_cmmands.add_index)
+        self._cursor.execute(self._sqlite_commands.create)
+        self._cursor.execute(self._sqlite_commands.add_index)
         self._connection.commit()
 
     def write(self, elements):
@@ -590,7 +590,7 @@ class SyncStorage(object):
             elements = [elements]
 
         for element in elements:
-            self._cursor.execute(self._sqlite_cmmands.insert, (element,))
+            self._cursor.execute(self._sqlite_commands.insert, (element,))
 
         self._connection.commit()
 
@@ -603,7 +603,7 @@ class SyncStorage(object):
             Finds element in storage.
         """
 
-        self._cursor.execute(self._sqlite_cmmands.select, (element,))
+        self._cursor.execute(self._sqlite_commands.select, (element,))
         self._connection.commit()
 
         return bool(self._cursor.fetchone())
