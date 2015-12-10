@@ -29,8 +29,6 @@ class Pholcidae:
 
         # default local urllib2 opener
         self._opener = None
-        # creating new PriorityList for URLs
-        self._unparsed_urls = PriorityList()
         # extending settings with given values
         self._extend_settings()
         # compiling regular expressions
@@ -112,7 +110,11 @@ class Pholcidae:
             # postcrawl fucntion to execute
             'postcrawl': None,
             # custom callbacks list
-            'callbacks': {}
+            'callbacks': {},
+            # support proxy
+            'proxy': {},
+            # database path
+            'db_path': 'pholcidae.db'
         })
 
         # updating settings with given values
@@ -128,6 +130,9 @@ class Pholcidae:
         # adding start point into unparsed list
         start_url = '%s%s%s' % (self._settings.protocol, self._settings.domain,
                                 self._settings.start_page)
+
+        # creating new PriorityList for URLs
+        self._unparsed_urls = PriorityList(self._settings.db_path)
         # adding start url to priority list with lesser priority
         self._unparsed_urls.add(start_url, matches=[], priority=0)
 
@@ -194,10 +199,15 @@ class Pholcidae:
             redirect handler if needed.
         """
 
-        self._opener = urllib2.build_opener()
+        handlers = []
+        if self._settings.proxy:
+            proxy_handler = urllib2.ProxyHandler(self._settings.proxy)
+            handlers.append(proxy_handler)
+
         if not self._settings.follow_redirects:
-            self._opener = urllib2.build_opener(PholcidaeRedirectHandler,
-                                                urllib2.HTTPCookieProcessor())
+            handlers.extend([PholcidaeRedirectHandler, urllib2.HTTPCookieProcessor()])
+
+        self._opener = urllib2.build_opener(*handlers)
 
     ############## PRE, POST CRAWL AND CUSTOM CALLBACK METHODS CALLERS ##################
 
@@ -460,12 +470,12 @@ class PriorityList(object):
 
     """ List with priority. """
 
-    def __init__(self):
+    def __init__(self, db_path):
         self.heap = []
         self._set = set()
 
         self._set_disk_sync_freq = 10000
-        self._sync_storage = SyncStorage()
+        self._sync_storage = SyncStorage(db_path)
 
     def __repr__(self):
         return str(self.heap)
@@ -481,6 +491,8 @@ class PriorityList(object):
             Appends element to list with priority.
         """
 
+        # ignore the fragment
+        element = element.split('#', 1)[0]
         if not self.is_parsed(element):
             heapq.heappush(self.heap, (priority, element, matches))
 
@@ -527,8 +539,8 @@ class SyncStorage(object):
 
     """ Storage to sync parsed URLs set to persistent storage. """
 
-    def __init__(self):
-        self._storage_file = 'pholcidae.db'
+    def __init__(self, db_path):
+        self._storage_file = db_path
         self._connection = sqlite3.connect(self._storage_file)
         self._cursor = self._connection.cursor()
 

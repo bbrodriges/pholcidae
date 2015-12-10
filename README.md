@@ -45,6 +45,7 @@ Params you can use:
 
 **Additional**
 
+* **db_path** _string_ - sqlite database path, default: pholcidae.db
 * **start_page** _string_ - URL which will be used as entry point to parsed site. Default: `/`
 * **protocol** _string_ - defines protocol to be used by crawler. Default: `http://`
 * **stay_in_domain** _bool_ - defines ability of crawler to leave passed domain to crawl out-of-domain pages. Default: `True`
@@ -58,6 +59,7 @@ Params you can use:
 * **precrawl** _string_ - name of function which will be called before start of crawler. Default: `None`
 * **postcrawl** _string_ - name of function which will be called after the end crawlering. Default: `None`
 * **callbacks** _dict_ - a dictionary of key-values which represents URL pattern from `valid_links` dict and string name of self defined method to get parsed data. Default: `{}`
+* **proxy** _dict_ - a dictionary mapping protocol names to URLs of proxies, e.g., {'http': 'http://user:passwd@host:port'}
 
 Response attributes
 ------------
