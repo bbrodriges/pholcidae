@@ -1,4 +1,4 @@
-from pholcidae import Pholcidae
+from cpholcidae import Pholcidae
 
 class MyTestSpider(Pholcidae):
 

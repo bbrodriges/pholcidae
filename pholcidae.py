@@ -6,9 +6,10 @@ import heapq
 import sqlite3
 import os
 import mimetypes
+import tempfile
 
 # importing modules corresponding to Python version
-if sys.version_info < (3,0,0):
+if sys.version_info < (3, 0, 0):
     import urlparse
     import urllib2
 else:
@@ -27,8 +28,6 @@ class Pholcidae:
             Creates Pholcidae instance and updates default settings dict.
         """
 
-        # default local urllib2 opener
-        self._opener = None
         # extending settings with given values
         self._extend_settings()
         # compiling regular expressions
@@ -112,9 +111,7 @@ class Pholcidae:
             # custom callbacks list
             'callbacks': {},
             # support proxy
-            'proxy': {},
-            # database path
-            'db_path': 'pholcidae.db'
+            'proxy': {}
         })
 
         # updating settings with given values
@@ -132,7 +129,7 @@ class Pholcidae:
                                 self._settings.start_page)
 
         # creating new PriorityList for URLs
-        self._unparsed_urls = PriorityList(self._settings.db_path)
+        self._unparsed_urls = PriorityList()
         # adding start url to priority list with lesser priority
         self._unparsed_urls.add(start_url, matches=[], priority=0)
 
@@ -470,12 +467,12 @@ class PriorityList(object):
 
     """ List with priority. """
 
-    def __init__(self, db_path):
+    def __init__(self):
         self.heap = []
         self._set = set()
 
         self._set_disk_sync_freq = 10000
-        self._sync_storage = SyncStorage(db_path)
+        self._sync_storage = SyncStorage()
 
     def __repr__(self):
         return str(self.heap)
@@ -539,17 +536,33 @@ class SyncStorage(object):
 
     """ Storage to sync parsed URLs set to persistent storage. """
 
-    def __init__(self, db_path):
-        self._storage_file = db_path
-        self._connection = sqlite3.connect(self._storage_file)
+    def __init__(self):
+        self._storage_file = tempfile.NamedTemporaryFile()
+        self._connection = sqlite3.connect(self._storage_file.name)
         self._cursor = self._connection.cursor()
 
+        self.prepare_sqlite_commands()
         self.prepare_storage()
 
     def __del__(self):
         self._cursor.close()
         self._connection.close()
-        os.remove(self._storage_file)
+        self._storage_file.close()
+
+    def prepare_sqlite_commands(self):
+
+        """
+            @return void
+
+            Prepares SQLite commands.
+        """
+
+        self._sqlite_cmmands = AttrDict({
+            'create':    'CREATE TABLE `parsed_urls` (`url` VARCHAR(3000) NOT NULL);',
+            'add_index': 'CREATE UNIQUE INDEX `url_UNIQUE` ON `parsed_urls` (`url` ASC);',
+            'insert':    'INSERT OR IGNORE INTO `parsed_urls` (`url`) VALUES (?);',
+            'select':    'SELECT url FROM `parsed_urls` WHERE url = ?;'
+        });
 
     def prepare_storage(self):
 
@@ -560,10 +573,8 @@ class SyncStorage(object):
         """
 
         # creating table to store URLs
-        self._cursor.execute('CREATE TABLE `parsed_urls` (`url` VARCHAR(3000) NOT NULL);')
-        # creating index on url field
-        self._cursor.execute('CREATE UNIQUE INDEX `url_UNIQUE` ON `parsed_urls` (`url` ASC);')
-
+        self._cursor.execute(self._sqlite_cmmands.create)
+        self._cursor.execute(self._sqlite_cmmands.add_index)
         self._connection.commit()
 
     def write(self, elements):
@@ -579,7 +590,7 @@ class SyncStorage(object):
             elements = [elements]
 
         for element in elements:
-            self._cursor.execute('INSERT OR IGNORE INTO `parsed_urls` (`url`) VALUES (?);', (element,))
+            self._cursor.execute(self._sqlite_cmmands.insert, (element,))
 
         self._connection.commit()
 
@@ -592,7 +603,7 @@ class SyncStorage(object):
             Finds element in storage.
         """
 
-        self._cursor.execute('SELECT url FROM `parsed_urls` WHERE url = ?;', (element,))
+        self._cursor.execute(self._sqlite_cmmands.select, (element,))
         self._connection.commit()
 
         return bool(self._cursor.fetchone())
