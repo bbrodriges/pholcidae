@@ -1,31 +1,106 @@
-Pholcidae2 - Tiny python web crawler
+PHOLCIDAE - Tiny python web crawler
 =========
 
-Important notice
+Pholcidae
 ------------
+Pholcidae, commonly known as cellar spiders, are a spider family in the suborder Araneomorphae.
 
-If you're looking for stable version please see [1.0 branch](https://github.com/bbrodriges/pholcidae/tree/1.0). Master branch is for currently unstable version 2.0 of pholcidae.
-
-About second version
+About
 ------------
+Pholcidae is a tiny Python module allows you to write your own crawl spider fast and easy.
 
-The second version's goals are simple: full backward compatibility with version 1.0 of pholcidae, less logic and ... threads!
+_View end of README to read about changes in v. 2.0_
 
 Dependencies
 ------------
+* python >= 3.4.x
 
-* python >= 2.6.x
+Basic example
+------------
+``` python
+from pholcidae2 import Pholcidae
 
-Licence
+class MySpider(Pholcidae):
+
+	def crawl(self, data):
+    	print(data.url)
+
+settings = {'domain': 'www.test.com', 'start_page': '/sitemap/'}
+
+spider = MySpider()
+spider.extend(settings)
+spider.start()
+```
+
+Allowed settings
+------------
+Settings must be passed as dictionary to ```extend``` method of the crawler.
+
+Params you can use:
+
+**Required**
+
+* **domain** _string_ - defines domain which pages will be parsed. Defines without trailing slash.
+
+**Additional**
+
+* **start_page** _string_ - URL which will be used as entry point to parsed site. Default: `/`
+* **protocol** _string_ - defines protocol to be used by crawler. Default: `http://`
+* **stay_in_domain** _bool_ - defines ability of crawler to leave passed domain to crawl out-of-domain pages. Default: `True`
+* **valid_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs to be passed to `crawl()` method. Default: `['(.*)']`
+* **append_to_links** _string_ - text to be appended to each link before fetching it. Default: `''`
+* **exclude_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs which must not be checked at all. Default: `[]`
+* **cookies** _dict_ - a dictionary of string key-values which represents cookie name and cookie value to be passed with site URL request. Default: `{}`
+* **headers** _dict_ - a dictionary of string key-values which represents header name and value value to be passed with site URL request. Default: `{}`
+* **follow_redirects** _bool_ - allows crawler to bypass 30x headers and not follow redirects. Default: `True`
+* **precrawl** _string_ - name of function which will be called before start of crawler. Default: `None`
+* **postcrawl** _string_ - name of function which will be called after the end crawlering. Default: `None`
+* **callbacks** _dict_ - a dictionary of key-values which represents URL pattern from `valid_links` dict and string name of self defined method to get parsed data. Default: `{}`
+* **proxy** _dict_ - a dictionary mapping protocol names to URLs of proxies, e.g., {'http': 'http://user:passwd@host:port'}. Default: `{}`
+
+New in 2.0: 
+
+* **silent_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs which must not pass page data to callback function, yet still collect URLs from this page. Default: `[]`
+* **valid_mimes** _list_ - list of strings representing valid MIME types. Only URLs that can be identified with this MIME types will be parsed. Default: `[]`
+*  **threads** _int_ - number of cuncurrent threads of pages fetchers. Default: `1`
+
+Response attributes
 ------------
 
-This code uses MIT License.
+While inhrerit Pholcidae class you can override built-in `crawl()` method to retreive data gathered from page. Any response object will contain some attributes depending on successfulness of page parsing.
 
-```
-Copyright (c) 2013 bender.rodriges
+**Successfull parsing**
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+* **body** _string_ - raw HTML/XML/XHTML etc. representation of page.
+* **url** _string_ - URL of parsed page.
+* **headers** _AttrDict_ - dictionary of response headers.
+* **cookies** _AttrDict_ - dictionary of response cookies.
+* **status** _int_ - HTTP status of response (e.g. 200).
+* **match** _list_ - matched part from valid_links regex.
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+**Unsuccessfull parsing**
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+* **body** _string_ - raw representation of error.
+* **status** _int_ - HTTP status of response (e.g. 200). Default: 500
+* **url** _string_ - URL of parsed page.
+
+Example
+------------
+See ```test.py```
+
+Note
+------------
+Pholcidae does not contain any built-in XML, XHTML, HTML or other parser. You can manually add any response body parsing methods using any available python libraries you want.
+
+2.0 vs 1.x
+------------
+Major changes have been made in version 2.0:
+* All code has been completely rewritten from scratch
+* Less abstractions = more speed
+* Threads support
+* In-memory sqlite3 database used for links sync
+* Matches in page data are now list and not optional
+
+There are some minor code changes which breaks backward compatibility between version 1.x and 2.0:
+* You need to pass settings to ```extend``` method of your crawler
+* Option ```autostart``` has been removed. You must call ```spider.srart()``` explisitly
