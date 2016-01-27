@@ -226,9 +226,11 @@ class Fetcher(Thread):
 
             # gather page data and call callback function if not silent
             if not self._is_silent(self._url):
+                headers = {h[0]: h[1] for h in response.headers.items()}
+
                 page.update({
-                    'headers': dict(response.headers.items()),
-                    'cookies': Cookies.parse(dict(response.headers.items())),
+                    'headers': headers,
+                    'cookies': Cookies.parse(headers),
                     'status': response.getcode(),
                     'matches': self._get_matches(self._url),
                 })
@@ -398,11 +400,9 @@ class Cookies(object):
         """
 
         cookies = {}
-        # lowering headers keys
-        headers = {k.lower(): v for k, v in headers.items()}
-        if 'set-cookie' in headers:
+        if 'Set-Cookie' in headers:
             # splitting raw cookies
-            raw_cookies = headers['set-cookie'].split(';')
+            raw_cookies = headers['Set-Cookie'].split(';')
             for cookie in raw_cookies:
                 cookie = cookie.split('=')
                 if cookie[0].strip() not in Cookies.__meta_fields and len(cookie) > 1:
