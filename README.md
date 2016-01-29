@@ -13,7 +13,7 @@ _View end of README to read about changes in v. 2.0_
 
 Dependencies
 ------------
-* python >= 3.4.x
+* python 2.7 or higher
 
 Basic example
 ------------
@@ -63,6 +63,7 @@ New in 2.0:
 * **silent_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs which must not pass page data to callback function, yet still collect URLs from this page. Default: `[]`
 * **valid_mimes** _list_ - list of strings representing valid MIME types. Only URLs that can be identified with this MIME types will be parsed. Default: `[]`
 *  **threads** _int_ - number of cuncurrent threads of pages fetchers. Default: `1`
+*  **with_lock** _bool_ - wheither use or not lock while URLs sync. It slightly decreases crawling speed but enliminates race condicitons. Default: `True`
 
 Response attributes
 ------------
@@ -98,9 +99,9 @@ Major changes have been made in version 2.0:
 * All code has been completely rewritten from scratch
 * Less abstractions = more speed
 * Threads support
-* In-memory sqlite3 database used for links sync
 * Matches in page data are now list and not optional
 
-There are some minor code changes which breaks backward compatibility between version 1.x and 2.0:
-* You need to pass settings to ```extend``` method of your crawler
+There are some minor code changes which breaks backward code compatibility between version 1.x and 2.0:
+* You need to explicitly pass settings to ```extend``` method of your crawler
 * Option ```autostart``` has been removed. You must call ```spider.srart()``` explisitly
+* Module is now called ```pholcidae2```

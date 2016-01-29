@@ -1,12 +1,17 @@
 # -*- coding: UTF-8 -*-
 
 import re
-import sqlite3
 import mimetypes
+import sys
 
-from threading import Thread
-from urllib import request
-from urllib import parse
+from threading import Thread, Lock
+
+if sys.version_info < (3, 0, 0):
+    import urlparse as parse
+    import urllib2 as request
+else:
+    from urllib import request
+    from urllib import parse
 
 
 class Pholcidae(object):
@@ -33,15 +38,13 @@ class Pholcidae(object):
         'proxy':            {},
         'valid_mimes':      [],
         'threads':          1,
+        'with_lock':        True,
     }
 
     def extend(self, settings):
 
         """
-            @type settings dict
-            @return void
-
-            Extends default settings using given settings.
+        Extends default settings using given settings.
         """
 
         self._settings.update(settings)
@@ -49,9 +52,7 @@ class Pholcidae(object):
     def start(self):
 
         """
-            @return void
-
-            Prepares everything and starts
+        Prepares everything and starts
         """
 
         self.__prepare()
@@ -69,11 +70,8 @@ class Pholcidae(object):
     def crawl(self, response):
 
         """
-            @type response dict
-            @return void
-
-            You may override this method in a subclass.
-            Use it to get html page and parse it as you want to.
+        You may override this method in a subclass.
+        Use it to get page content and parse it as you want to.
         """
 
         pass
@@ -81,18 +79,15 @@ class Pholcidae(object):
     def __prepare(self):
 
         """
-            @return void
-
-            Prepares everything before start.
+        Prepares everything before start.
         """
 
         # creating new SyncStorage instance
         self._storage = SyncStorage()
-        self._storage.setup()
 
         # adding start point into storage
         start_url = '%(protocol)s%(domain)s%(start_page)s' % self._settings
-        self._storage.add((start_url.strip(), SyncStorage.PRIORITY_NORMAL))
+        self._storage.add(start_url.strip(), SyncStorage.PRIORITY_LOW)
 
         # creating HTTP opener instance
         handlers = []
@@ -138,13 +133,13 @@ class Pholcidae(object):
     def __fetch_pages(self):
 
         """
-            @return void
-
-            Main fetching loop
+        Main fetching loop
         """
 
         # getting initial page
         urls = self._storage.pop(self._settings['threads'])
+        # creating lock
+        lock = Lock() if self._settings['with_lock'] else DummyLock()
 
         while urls:
 
@@ -153,7 +148,8 @@ class Pholcidae(object):
             for url in urls:
                 fetcher = Fetcher()
                 fetcher.setup({
-                    'url': url['url'],
+                    'url': url,
+                    'lock': lock,
                     'parent': self
                 })
                 fetcher.start()
@@ -178,13 +174,11 @@ class Fetcher(Thread):
     def setup(self, settings):
 
         """
-            @type settings dict
-            @return void
-
-            Sets up thread
+        Sets up thread
         """
 
         self._url = settings['url']
+        self._lock = settings['lock']
         self._parent = settings['parent']
 
         self._opener = self._parent._opener
@@ -192,7 +186,7 @@ class Fetcher(Thread):
         self._regexes = self._parent._regexes
         self._settings = self._parent._settings
 
-        self._storage = SyncStorage()
+        self._storage = self._parent._storage
 
     def run(self):
 
@@ -214,7 +208,10 @@ class Fetcher(Thread):
         response = None
 
         try:
-            resp = self._opener.open(self._url)
+            # append user defined string to link before crawl
+            prepared_url = self._url + self._settings['append_to_links']
+
+            resp = self._opener.open(prepared_url)
             response = resp
         except request.HTTPError as resp:
             response = resp
@@ -242,9 +239,7 @@ class Fetcher(Thread):
     def __get_callback(self):
 
         """
-            @return function
-
-            Returns callback function by url
+        Returns callback function by url
         """
 
         # default callback
@@ -260,17 +255,14 @@ class Fetcher(Thread):
     def __extract_urls(self, body):
 
         """
-            @param body str
-            @return list
-
-            Extracts valid URLs from page body
+        Extracts valid URLs from page body
         """
 
         links = self._regexes['href_links'].findall(body)
 
         for link in links:
             # default priority
-            priority = SyncStorage.PRIORITY_NORMAL
+            priority = SyncStorage.PRIORITY_LOW
 
             # removing anchor part
             link = link.split('#', 1)[0]
@@ -290,7 +282,7 @@ class Fetcher(Thread):
                 continue
 
             # pass if already parsed
-            if self._storage.is_parsed(link, body):
+            if self._storage.is_parsed(link):
                 continue
 
             # pass excluded link
@@ -308,25 +300,19 @@ class Fetcher(Thread):
                 if self._settings['stay_in_domain']:
                     # pass if "stay in domain" enabled
                     continue
-                else:
-                    # set lowest priority if "stay in domain" disabled
-                    priority = SyncStorage.PRIORITY_LOW
 
             # set highest priority if link matches any regex from "valid_links" list
             if self._is_valid(link):
                 priority = SyncStorage.PRIORITY_HIGH
 
-            self._storage.add((link, priority))
-
-        return []
+            # locking
+            with self._lock:
+                self._storage.add(link, priority)
 
     def _is_excluded(self, link):
 
         """
-            @type link str
-            @return bool
-
-            Checks if link matches excluded regex.
+        Checks if link matches excluded regex.
         """
 
         for regex in self._regexes['exclude_links']:
@@ -337,10 +323,7 @@ class Fetcher(Thread):
     def _get_matches(self, link):
 
         """
-            @type link str
-            @return list
-
-            Returns matches if link is valid
+        Returns matches if link is valid
         """
 
         for regex in self._regexes['valid_links']:
@@ -352,10 +335,7 @@ class Fetcher(Thread):
     def _is_valid(self, link):
 
         """
-            @type link str
-            @return bool
-
-            Checks if link matches any regex from "valid_links" list
+        Checks if link matches any regex from "valid_links" list
         """
 
         return self._get_matches(link)
@@ -363,10 +343,7 @@ class Fetcher(Thread):
     def _is_silent(self, link):
 
         """
-            @type link str
-            @return list
-
-            Checks if link is silent
+        Checks if link is silent
         """
 
         for regex in self._regexes['silent_links']:
@@ -393,10 +370,7 @@ class Cookies(object):
     def parse(headers):
 
         """
-            @type headers dict
-            @return dict
-
-            Parses cookies from response headers.
+        Parses cookies from response headers.
         """
 
         cookies = {}
@@ -415,165 +389,44 @@ class SyncStorage(object):
     """ Stores URLs in persistent storage. """
 
     PRIORITY_LOW = 0
-    PRIORITY_NORMAL = 1
-    PRIORITY_HIGH = 2
-
-    _sqlite_commands = {
-        'drop': 'DROP TABLE IF EXISTS `links`',
-        'create': 'CREATE TABLE `links` (' +
-                  ' `url` VARCHAR(2048) NOT NULL UNIQUE,' +
-                  ' `priority` UNSIGNED TINYINT(1),' +
-                  ' `parsed` UNSIGNED TINYINT(1) DEFAULT 0' +
-                  ')',
-        'insert': 'INSERT OR IGNORE INTO `links` (`url`, `priority`) VALUES (?, ?)',
-        'select': 'SELECT url, priority, parsed FROM `links` WHERE 1',
-        'update': 'UPDATE `links` SET parsed=? WHERE url=?',
-    }
-
-    _sqlite_schema = ['url', 'priority', 'parsed']
+    PRIORITY_HIGH = 1
 
     def __init__(self):
-        self._connection_point = 'file:pholcidae?mode=memory&cache=shared'
-        self._connection = sqlite3.connect(self._connection_point, check_same_thread=False, uri=True)
-        self._cursor = self._connection.cursor()
+        self._set = set()
+        self._list = list()
 
-    def __del__(self):
-        self._cursor.close()
-        self._connection.close()
-
-    def add(self, values):
+    def add(self, value, priority=PRIORITY_LOW):
 
         """
-            @type values list|tuple
-            @return void
-
-            Writes element into storage.
+        Adds value to storage
         """
 
-        if not isinstance(values, list):
-            values = [values]
-
-        self._cursor.executemany(self._sqlite_commands['insert'], values)
-        self._connection.commit()
-
-    def get_all(self, values={}):
-
-        """
-            @type values dict
-            @return list
-
-            Finds multiple elements in storage.
-        """
-
-        sql = self._sqlite_commands['select']
-        params = []
-
-        if values:
-            for key, value in values.items():
-                sql += ' AND ' + key + '=?'
-                params.append(value)
-
-        self._cursor.execute(sql, tuple(params))
-        self._connection.commit()
-
-        records = self._cursor.fetchall()
-
-        result = []
-        if records:
-            for record in records:
-                record_dict = {}
-                for idx, value in enumerate(record):
-                    record_dict[self._sqlite_schema[idx]] = value
-                result.append(record_dict)
-
-        return result
-
-    def get(self, values={}):
-
-        """
-            @type values dict
-            @return dict
-
-            Finds one element in storage.
-        """
-
-        records = self.get_all(values)
-        return records[0] if records else {}
-
-    def update(self, values):
-
-        """
-            @type values dict
-            @return void
-
-            Deletes element from storage.
-        """
-
-        params = (values['parsed'], values['url'])
-
-        self._cursor.execute(self._sqlite_commands['update'], params)
-        self._connection.commit()
+        if value not in self._set:
+            self._list.insert(0, value) if priority == self.PRIORITY_HIGH else self._list.append(value)
+        self._set.add(value)
 
     def pop(self, num=1):
 
         """
-            @type num int
-            @return void
-
-            Pops element(s) from storage.
+        Pops values from storage
         """
 
-        sql = self._sqlite_commands['select'] + ' AND parsed = 0 ORDER BY priority DESC LIMIT ?'
+        values = []
+        for i in range(0, num):
+            try:
+                values.append(self._list.pop(0))
+            except IndexError:
+                break
 
-        self._cursor.execute(sql, (num,))
-        records = self._cursor.fetchall()
+        return values
 
-        params = [(1, record[0]) for record in records]
-        self._cursor.executemany(self._sqlite_commands['update'], params)
-        self._connection.commit()
-
-        result = []
-        if records:
-            for record in records:
-                record_dict = {}
-                for idx, value in enumerate(record):
-                    record_dict[self._sqlite_schema[idx]] = value
-                result.append(record_dict)
-
-        return result
-
-    def is_parsed(self, url, body):
+    def is_parsed(self, value):
 
         """
-            @param url str
-            @return bool
-
-            Checks if URL has been already parsed
+        Checks if value has been already parsed
         """
 
-        try:
-            sql = self._sqlite_commands['select'] + ' AND parsed = 1 AND url = \'%s\'' % url
-            self._cursor.execute(sql)
-            self._connection.commit()
-
-            result = self._cursor.fetchone()
-        except:
-            result = True
-
-        return bool(result)
-
-    def setup(self):
-
-        """
-            @return void
-
-            Sets up storage.
-        """
-
-        # creating table to store URLs
-        self._cursor.execute(self._sqlite_commands['drop'])
-        self._cursor.execute(self._sqlite_commands['create'])
-        self._connection.commit()
+        return value in self._set
 
 
 class RedirectHandler(request.HTTPRedirectHandler):
@@ -583,4 +436,13 @@ class RedirectHandler(request.HTTPRedirectHandler):
     def http_error_302(self, req, fp, code, msg, headers):
         return fp
 
-    http_error_301 = http_error_303 = http_error_307 = http_error_302
+
+class DummyLock(object):
+
+    """ Dummy lock object """
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
