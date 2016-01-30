@@ -62,8 +62,9 @@ New in 2.0:
 
 * **silent_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs which must not pass page data to callback function, yet still collect URLs from this page. Default: `[]`
 * **valid_mimes** _list_ - list of strings representing valid MIME types. Only URLs that can be identified with this MIME types will be parsed. Default: `[]`
-*  **threads** _int_ - number of cuncurrent threads of pages fetchers. Default: `1`
-*  **with_lock** _bool_ - wheither use or not lock while URLs sync. It slightly decreases crawling speed but enliminates race condicitons. Default: `True`
+* **threads** _int_ - number of cuncurrent threads of pages fetchers. Default: `1`
+* **with_lock** _bool_ - wheither use or not lock while URLs sync. It slightly decreases crawling speed but enliminates race condicitons. Default: `True`
+* **hashed** __bool__ - wheither or not store parsed URLs as shortened SHA1 hashes. Crawler may run a little bit slower but consumes a lot less memory. Default: `False`
 
 Response attributes
 ------------

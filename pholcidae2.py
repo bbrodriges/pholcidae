@@ -5,6 +5,7 @@ import mimetypes
 import sys
 
 from threading import Thread, Lock
+from hashlib import sha1
 
 if sys.version_info < (3, 0, 0):
     import urlparse as parse
@@ -39,6 +40,7 @@ class Pholcidae(object):
         'valid_mimes':      [],
         'threads':          1,
         'with_lock':        True,
+        'hashed':           False,
     }
 
     def extend(self, settings):
@@ -84,6 +86,9 @@ class Pholcidae(object):
 
         # creating new SyncStorage instance
         self._storage = SyncStorage()
+        self._storage.setup({
+            'hashed': self._settings['hashed']
+        })
 
         # adding start point into storage
         start_url = '%(protocol)s%(domain)s%(start_page)s' % self._settings
@@ -275,14 +280,14 @@ class Fetcher(Thread):
             link = parse.urljoin(self._url, link)
             link = link.strip()
 
+            # pass if already parsed
+            if self._storage.is_parsed(link):
+                continue
+
             # trying to extract links only from valid set of pages MIME types
             url_type = mimetypes.guess_type(link, True)[0]
             allowed_mimes = self._settings['valid_mimes']
             if allowed_mimes and url_type not in allowed_mimes:
-                continue
-
-            # pass if already parsed
-            if self._storage.is_parsed(link):
                 continue
 
             # pass excluded link
@@ -395,15 +400,26 @@ class SyncStorage(object):
         self._set = set()
         self._list = list()
 
+    def setup(self, settings):
+
+        """
+        Sets up sync storage
+        """
+
+        self._hashed = settings['hashed']
+
     def add(self, value, priority=PRIORITY_LOW):
 
         """
         Adds value to storage
         """
 
-        if value not in self._set:
+        # preparing value of URL to be stored
+        store_value = value if not self._hashed else sha1(value.encode('utf-8')).hexdigest()[:6]
+
+        if store_value not in self._set:
             self._list.insert(0, value) if priority == self.PRIORITY_HIGH else self._list.append(value)
-        self._set.add(value)
+        self._set.add(store_value)
 
     def pop(self, num=1):
 
