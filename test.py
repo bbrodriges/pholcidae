@@ -1,4 +1,4 @@
-from pholcidae2 import Pholcidae, SyncStorage
+from pholcidae2 import Pholcidae
 
 
 class MyTestSpider(Pholcidae):
