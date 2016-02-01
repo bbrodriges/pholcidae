@@ -4,6 +4,7 @@ import re
 import mimetypes
 import sys
 
+import threading
 from threading import Thread, Lock
 from hashlib import sha1
 
@@ -91,9 +92,6 @@ class Pholcidae(object):
 
         # creating new SyncStorage instance
         self._storage = SyncStorage()
-        self._storage.setup({
-            'hashed': self._settings['hashed']
-        })
 
         # adding start point into storage
         start_url = '%(protocol)s%(domain)s%(start_page)s' % self._settings
@@ -315,9 +313,11 @@ class Fetcher(Thread):
             if self._is_valid(link):
                 priority = SyncStorage.PRIORITY_HIGH
 
+            link_hash = link if not self._settings['hashed'] else sha1(link.encode('utf-8')).hexdigest()[:6]
+
             # locking
             with self._lock:
-                self._storage.add(link, priority)
+                self._storage.add(link, link_hash, priority)
 
     def _is_excluded(self, link):
 
@@ -405,26 +405,16 @@ class SyncStorage(object):
         self._set = set()
         self._list = list()
 
-    def setup(self, settings):
-
-        """
-        Sets up sync storage
-        """
-
-        self._hashed = settings['hashed']
-
-    def add(self, value, priority=PRIORITY_LOW):
+    def add(self, value, value_hash, priority=PRIORITY_LOW):
 
         """
         Adds value to storage
         """
 
-        # preparing value of URL to be stored
-        store_value = value if not self._hashed else sha1(value.encode('utf-8')).hexdigest()[:6]
-
-        if store_value not in self._set:
-            self._list.insert(0, value) if priority == self.PRIORITY_HIGH else self._list.append(value)
-        self._set.add(store_value)
+        if value_hash in self._set:
+            return
+        self._list.insert(0, value) if priority == self.PRIORITY_HIGH else self._list.append(value)
+        self._set.add(value_hash)
 
     def pop(self, num=1):
 
