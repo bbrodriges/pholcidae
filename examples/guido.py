@@ -1,8 +1,7 @@
 from pholcidae2 import Pholcidae
 
 
-class MyTestSpider(Pholcidae):
-
+class MyGuidoSpider(Pholcidae):
     def before(self):
         print('-------- PRECRAWL ----------')
 
@@ -16,10 +15,11 @@ class MyTestSpider(Pholcidae):
     def crawl(self, data):
         print(data['url'], data['status'], data['matches'])
 
+
 settings = {
     'domain': 'www.python.org/~guido',
     'start_page': '/',
-    'valid_links':  ['(.*)'],
+    'valid_links': ['(.*)'],
     'exclude_links': ['ClaymontJPEGS'],
     'silent_links': ['Publications.html'],
     'append_to_links': '?a=b',
@@ -29,6 +29,6 @@ settings = {
     'threads': 3,
 }
 
-spider = MyTestSpider()
+spider = MyGuidoSpider()
 spider.extend(settings)
 spider.start()

@@ -61,7 +61,7 @@ Params you can use:
 * **headers** _dict_ - a dictionary of string key-values which represents header name and value value to be passed with site URL request. Default: `{}`
 * **follow_redirects** _bool_ - allows crawler to bypass 30x headers and not follow redirects. Default: `True`
 * **precrawl** _string_ - name of function which will be called before start of crawler. Default: `None`
-* **postcrawl** _string_ - name of function which will be called after the end crawlering. Default: `None`
+* **postcrawl** _string_ - name of function which will be called after the end crawling. Default: `None`
 * **callbacks** _dict_ - a dictionary of key-values which represents URL pattern from `valid_links` dict and string name of self defined method to get parsed data. Default: `{}`
 * **proxy** _dict_ - a dictionary mapping protocol names to URLs of proxies, e.g., {'http': 'http://user:passwd@host:port'}. Default: `{}`
 
@@ -69,16 +69,16 @@ New in 2.0:
 
 * **silent_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs which must not pass page data to callback function, yet still collect URLs from this page. Default: `[]`
 * **valid_mimes** _list_ - list of strings representing valid MIME types. Only URLs that can be identified with this MIME types will be parsed. Default: `[]`
-* **threads** _int_ - number of cuncurrent threads of pages fetchers. Default: `1`
-* **with_lock** _bool_ - wheither use or not lock while URLs sync. It slightly decreases crawling speed but enliminates race condicitons. Default: `True`
-* **hashed** __bool__ - wheither or not store parsed URLs as shortened SHA1 hashes. Crawler may run a little bit slower but consumes a lot less memory. Default: `False`
+* **threads** _int_ - number of concurrent threads of pages fetchers. Default: `1`
+* **with_lock** _bool_ - whether use or not lock while URLs sync. It slightly decreases crawling speed but eliminates race conditions. Default: `True`
+* **hashed** _bool_ - whether or not store parsed URLs as shortened SHA1 hashes. Crawler may run a little bit slower but consumes a lot less memory. Default: `False`
 
 Response attributes
 ------------
 
-While inhrerit Pholcidae class you can override built-in `crawl()` method to retreive data gathered from page. Any response object will contain some attributes depending on successfulness of page parsing.
+While inherit Pholcidae class you can override built-in `crawl()` method to retrieve data gathered from page. Any response object will contain some attributes depending on page parsing success.
 
-**Successfull parsing**
+**Successful parsing**
 
 * **body** _string_ - raw HTML/XML/XHTML etc. representation of page.
 * **url** _string_ - URL of parsed page.
@@ -87,10 +87,10 @@ While inhrerit Pholcidae class you can override built-in `crawl()` method to ret
 * **status** _int_ - HTTP status of response (e.g. 200).
 * **match** _list_ - matched part from valid_links regex.
 
-**Unsuccessfull parsing**
+**Unsuccessful parsing**
 
 * **body** _string_ - raw representation of error.
-* **status** _int_ - HTTP status of response (e.g. 200). Default: 500
+* **status** _int_ - HTTP status of response (e.g. 400). Default: 500
 * **url** _string_ - URL of parsed page.
 
 Example
