@@ -10,10 +10,10 @@ if sys.version_info < (3, 0, 0):
     import urlparse as parse
     import urllib2 as request
 else:
-    from urllib import request
     from urllib import parse
+    from urllib import request
 
-version_info = (2, 0, 2)
+version_info = (2, 1, 0)
 __version__ = '.'.join(map(str, version_info))
 
 __author__ = 'bbrodriges'
@@ -32,7 +32,6 @@ class Pholcidae(object):
         'silent_links': [],
         'start_page': '/',
         'domain': '',
-        'stay_in_domain': True,
         'protocol': 'http://',
         'cookies': {},
         'headers': {},
@@ -44,6 +43,7 @@ class Pholcidae(object):
         'threads': 1,
         'with_lock': True,
         'hashed': False,
+        'respect_robots_txt': True,
     }
 
     def extend(self, settings):
@@ -135,6 +135,58 @@ class Pholcidae(object):
             compiled_regex = re.compile(regex, flags=flags)
             self._callbacks[compiled_regex] = callback_name
 
+        # getting robots.txt
+        self.__parse_robots_txt()
+
+    def __parse_robots_txt(self):
+        """
+        Parses robots.txt
+        """
+
+        if not self._settings['respect_robots_txt']:
+            return
+
+        start_url = '%(protocol)s%(domain)s%(start_page)s' % self._settings
+        root_uri = '{uri.scheme}://{uri.netloc}'.format(uri=parse.urlparse(start_url))
+        robots_txt_uri = '%s/robots.txt' % root_uri
+
+        try:
+
+            response = self._opener.open(robots_txt_uri)
+        except:
+            response = None
+
+        if not response:
+            return
+
+        headers = {k.lower(): v for k, v in self._settings['headers'].items()}
+        user_agent = headers['user-agent'] if 'user_agent' in headers else None
+
+        skip_directives = False
+        flags = re.I | re.S
+
+        robots_txt = response.read().decode('utf-8').lower()
+        for line in robots_txt.splitlines():
+            if line.startswith('#') or not line:
+                continue
+
+            key, value = [v.strip() for v in line.split(':', 1)]
+
+            if key not in ['user-agent', 'disallow']:
+                continue
+
+            if key == 'user-agent':
+                skip_directives = False
+                if value != '*' and value != user_agent:
+                    skip_directives = True
+                continue
+
+            if skip_directives:
+                continue
+
+            regex = '^%s' % value.replace('?', '\?').replace('/', '\/').replace('*', '(.*?)')
+            self._regexes['exclude_links'].append(re.compile(regex, flags=flags))
+
     def __fetch_pages(self):
 
         """
@@ -195,9 +247,7 @@ class Fetcher(Thread):
     def run(self):
 
         """
-            @return void
-
-            Runs url fetch and parse
+        Runs url fetch and parse
         """
 
         page = {
@@ -215,8 +265,7 @@ class Fetcher(Thread):
             # append user defined string to link before crawl
             prepared_url = self._url + self._settings['append_to_links']
 
-            resp = self._opener.open(prepared_url)
-            response = resp
+            response = self._opener.open(prepared_url)
         except request.HTTPError as resp:
             response = resp
         except:
@@ -301,9 +350,7 @@ class Fetcher(Thread):
                 continue
 
             if self._settings['domain'] not in link:
-                if self._settings['stay_in_domain']:
-                    # pass if "stay in domain" enabled
-                    continue
+                continue
 
             # set highest priority if link matches any regex from "valid_links" list
             if self._is_valid(link):
@@ -321,9 +368,14 @@ class Fetcher(Thread):
         Checks if link matches excluded regex.
         """
 
+        link_path = ''
+        if self._settings['respect_robots_txt']:
+            link_path = '{uri.path}?{uri.query}#{uri.fragment}'.format(uri=parse.urlparse(link))
+
         for regex in self._regexes['exclude_links']:
-            if regex.match(link):
+            if regex.match(link) or regex.match(link_path):
                 return True
+
         return False
 
     def _get_matches(self, link):

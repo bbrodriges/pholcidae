@@ -53,7 +53,6 @@ Params you can use:
 
 * **start_page** _string_ - URL which will be used as entry point to parsed site. Default: `/`
 * **protocol** _string_ - defines protocol to be used by crawler. Default: `http://`
-* **stay_in_domain** _bool_ - defines ability of crawler to leave passed domain to crawl out-of-domain pages. Default: `True`
 * **valid_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs to be passed to `crawl()` method. Default: `['(.*)']`
 * **append_to_links** _string_ - text to be appended to each link before fetching it. Default: `''`
 * **exclude_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs which must not be checked at all. Default: `[]`
@@ -72,6 +71,7 @@ New in 2.0:
 * **threads** _int_ - number of concurrent threads of pages fetchers. Default: `1`
 * **with_lock** _bool_ - whether use or not lock while URLs sync. It slightly decreases crawling speed but eliminates race conditions. Default: `True`
 * **hashed** _bool_ - whether or not store parsed URLs as shortened SHA1 hashes. Crawler may run a little bit slower but consumes a lot less memory. Default: `False`
+* **respect_robots_txt** _bool_ - whether or not read `robots.txt` file before start and add `Disallow` directives to **exclude_links** list. Default: `True`
 
 Response attributes
 ------------
@@ -108,6 +108,7 @@ Major changes have been made in version 2.0:
 * Less abstractions = more speed
 * Threads support
 * Matches in page data are now list and not optional
+* Option ```stay_in_domain``` has been removed. Crawler cannot break out of initial domain anymore.
 
 There are some minor code changes which breaks backward code compatibility between version 1.x and 2.0:
 * You need to explicitly pass settings to ```extend``` method of your crawler
