@@ -1,12 +1,10 @@
 # -*- coding: UTF-8 -*-
 
-import re
 import mimetypes
+import re
 import sys
-
-import threading
-from threading import Thread, Lock
 from hashlib import sha1
+from threading import Thread, Lock
 
 if sys.version_info < (3, 0, 0):
     import urlparse as parse
@@ -22,31 +20,30 @@ __author__ = 'bbrodriges'
 
 
 class Pholcidae(object):
-
     """" Pholcidae is a small and fast web crawler. """
 
     DEFAULT_CALLBACK = 'crawl'
 
     _settings = {
         'follow_redirects': True,
-        'append_to_links':  '',
-        'valid_links':      ['(.*)'],
-        'exclude_links':    [],
-        'silent_links':     [],
-        'start_page':       '/',
-        'domain':           '',
-        'stay_in_domain':   True,
-        'protocol':         'http://',
-        'cookies':          {},
-        'headers':          {},
-        'precrawl':         None,
-        'postcrawl':        None,
-        'callbacks':        {},
-        'proxy':            {},
-        'valid_mimes':      [],
-        'threads':          1,
-        'with_lock':        True,
-        'hashed':           False,
+        'append_to_links': '',
+        'valid_links': ['(.*)'],
+        'exclude_links': [],
+        'silent_links': [],
+        'start_page': '/',
+        'domain': '',
+        'stay_in_domain': True,
+        'protocol': 'http://',
+        'cookies': {},
+        'headers': {},
+        'precrawl': None,
+        'postcrawl': None,
+        'callbacks': {},
+        'proxy': {},
+        'valid_mimes': [],
+        'threads': 1,
+        'with_lock': True,
+        'hashed': False,
     }
 
     def extend(self, settings):
@@ -171,7 +168,6 @@ class Pholcidae(object):
 
 
 class Fetcher(Thread):
-
     """ Fetches given URL. """
 
     DEFAULT_HTTP_CODE = 500
@@ -205,11 +201,11 @@ class Fetcher(Thread):
         """
 
         page = {
-            'body':    '',
-            'url':     self._url,
+            'body': '',
+            'url': self._url,
             'headers': {},
             'cookies': {},
-            'status':  self.DEFAULT_HTTP_CODE,
+            'status': self.DEFAULT_HTTP_CODE,
             'matches': [],
         }
 
@@ -364,7 +360,6 @@ class Fetcher(Thread):
 
 
 class Cookies(object):
-
     """ Handles HTTP cookies parsing """
 
     # unnecessary cookie fields
@@ -395,7 +390,6 @@ class Cookies(object):
 
 
 class SyncStorage(object):
-
     """ Stores URLs in persistent storage. """
 
     PRIORITY_LOW = 0
@@ -441,7 +435,6 @@ class SyncStorage(object):
 
 
 class RedirectHandler(request.HTTPRedirectHandler):
-
     """ Custom URL redirects handler. """
 
     def http_error_302(self, req, fp, code, msg, headers):
@@ -449,7 +442,6 @@ class RedirectHandler(request.HTTPRedirectHandler):
 
 
 class DummyLock(object):
-
     """ Dummy lock object """
 
     def __enter__(self):

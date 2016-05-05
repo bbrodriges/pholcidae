@@ -15,8 +15,15 @@ Dependencies
 ------------
 * python 2.7 or higher
 
-Basic example
+Install
 ------------
+```
+pip install git+https://github.com/bbrodriges/pholcidae.git
+```
+
+Basic example
+-------------
+
 ``` python
 from pholcidae2 import Pholcidae
 
