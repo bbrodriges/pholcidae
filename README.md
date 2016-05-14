@@ -64,7 +64,7 @@ Params you can use:
 * **callbacks** _dict_ - a dictionary of key-values which represents URL pattern from `valid_links` dict and string name of self defined method to get parsed data. Default: `{}`
 * **proxy** _dict_ - a dictionary mapping protocol names to URLs of proxies, e.g., {'http': 'http://user:passwd@host:port'}. Default: `{}`
 
-New in 2.0: 
+New in v2: 
 
 * **silent_links** _list_ - list of regular expression strings (or full URLs), which will be used to filter site URLs which must not pass page data to callback function, yet still collect URLs from this page. Default: `[]`
 * **valid_mimes** _list_ - list of strings representing valid MIME types. Only URLs that can be identified with this MIME types will be parsed. Default: `[]`
