@@ -9,7 +9,7 @@ About
 ------------
 Pholcidae is a tiny Python module allows you to write your own crawl spider fast and easy.
 
-_View end of README to read about changes in v. 2.0_
+_View end of README to read about changes in v2_
 
 Dependencies
 ------------
@@ -101,7 +101,7 @@ Note
 ------------
 Pholcidae does not contain any built-in XML, XHTML, HTML or other parser. You can manually add any response body parsing methods using any available python libraries you want.
 
-2.0 vs 1.x
+v2 vs v1
 ------------
 Major changes have been made in version 2.0:
 * All code has been completely rewritten from scratch
